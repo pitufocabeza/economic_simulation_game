@@ -1,5 +1,4 @@
 ﻿from datetime import datetime
-
 from sqlalchemy import ForeignKey, Integer, String, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

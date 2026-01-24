@@ -3,6 +3,7 @@
 from app.models.market_order import MarketOrder
 from app.models.inventory import Inventory
 from app.models.company import Company
+from app.models.market_trade import MarketTrade
 
 
 def try_execute_order(db: Session, incoming: MarketOrder):
@@ -69,8 +70,10 @@ def match_sell_order(db: Session, sell: MarketOrder):
 
     db.commit()  # ✅ COMMIT ONCE
 
-
-
+# IMPORTANT:
+# - Orders represent intent
+# - Trades represent executed facts
+# - Inventory & cash must only change here
 def execute_partial_trade(db: Session, buyer: MarketOrder, seller: MarketOrder):
     qty = min(buyer.quantity, seller.quantity)
     price = seller.price_per_unit
@@ -111,6 +114,16 @@ def execute_partial_trade(db: Session, buyer: MarketOrder, seller: MarketOrder):
         .with_for_update()
         .first()
     )
+
+    trade = MarketTrade(
+    good_id=seller.good_id,
+    buyer_company_id=buyer.company_id,
+    seller_company_id=seller.company_id,
+    quantity=qty,
+    price_per_unit=price,
+    )
+
+    db.add(trade)
 
     if not buyer_inventory:
         buyer_inventory = Inventory(

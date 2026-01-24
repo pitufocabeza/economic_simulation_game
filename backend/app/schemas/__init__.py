@@ -7,3 +7,4 @@ from .production_recipe import (
     ProductionRecipeRead,
 )
 from .market_order import MarketOrderCreate, MarketOrderRead
+from .extraction_site import ExtractionSiteCreate, ExtractionSiteRead

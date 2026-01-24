@@ -5,12 +5,12 @@
     "\\backend\\alembic",
     "\\backend\\alembic\\versions",
     "\\backend\\app",
-    "\\backend\\app\\models",
-    "\\backend\\app\\schemas",
+    "\\backend\\app\\scripts",
     "\\frontend",
+    "\\frontend\\components",
     "\\frontend\\src",
     "\\frontend\\src\\Pages"
   ],
-  "SelectedNode": "\\backend\\app\\schemas\\inventory.py",
+  "SelectedNode": "\\backend\\app\\schemas\\extraction_site.py",
   "PreviewInSolutionExplorer": false
 }

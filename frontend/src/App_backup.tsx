@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
-import { apiGet, apiPost } from "../api";
-import { useGame } from "../GameContext";
-
+﻿import { useEffect, useState } from "react";
+import { apiGet } from "./api";
+import { apiPost } from "./api";
 
 import {
     ComposedChart,
@@ -12,15 +11,29 @@ import {
     Bar
 } from "recharts";
 
-// ---- TYPES (copy-paste from App.tsx) ----
+
+type Company = {
+    id: number;
+    name: string;
+    cash: number;
+};
+
+type InventoryItem = {
+    good_id: number;
+    quantity: number;
+    good_name?: string;
+};
+
 type MarketOrder = {
     id: number;
     order_type: "buy" | "sell";
     quantity: number;
     price_per_unit: number;
     status: string;
+
     good_id: number;
     good_name: string;
+
     company_id: number;
     company_name: string;
 };
@@ -56,37 +69,26 @@ type Candle = {
     volume: number;
 };
 
-type MarketTrade = {
-    id: number;
-    good_id: number;
-    price_per_unit: number;
-    quantity: number;
-    buyer_company_id: number;
-    seller_company_id: number;
-    created_at: string;
-};
 
-// ---------------------------------------
-
-export default function MarketPage() {
-    // ---- STATE (copy from App.tsx) ----
-    const { companyId } = useGame();
+function App() {
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [companyId, setCompanyId] = useState<number | null>(null);
+    const [inventory, setInventory] = useState<InventoryItem[]>([]);
+    const [error, setError] = useState<string | null>(null);
     const [orders, setOrders] = useState<MarketOrder[]>([]);
-    const [goods, setGoods] = useState<Good[]>([]);
+    const [orderType, setOrderType] = useState<"buy" | "sell">("buy");
+    const [goodId, setGoodId] = useState<number | null>(null);
+    const [price, setPrice] = useState<number>(0);
+    const [quantity, setQuantity] = useState<number>(0);
     const [trades, setTrades] = useState<MarketTrade[]>([]);
     const [orderBook, setOrderBook] = useState<OrderBook | null>(null);
     const [marketStats, setMarketStats] = useState<MarketStats | null>(null);
 
-    const [orderType, setOrderType] = useState<"buy" | "sell">("buy");
-    const [goodId, setGoodId] = useState<number | null>(null);
-    const [price, setPrice] = useState(0);
-    const [quantity, setQuantity] = useState(0);
-
     const [candles, setCandles] = useState<Candle[]>([]);
-    const [selectedGoodForChart, setSelectedGoodForChart] =
-        useState<number | null>(null);
+    const [selectedGoodForChart, setSelectedGoodForChart] = useState<number | null>(null);
 
-    const [error, setError] = useState<string | null>(null);
+
+    const [goods, setGoods] = useState<Good[]>([]);
 
     const loadOrders = async () => {
         try {
@@ -97,14 +99,137 @@ export default function MarketPage() {
         }
     };
 
-    const submitOrder = async () => {
-        if (!goodId) {
-            setError("Select good");
+    const loadInventory = async () => {
+        if (!companyId) {
+            setInventory([]);
             return;
         }
 
-        if (!companyId) {
-            setError("No company selected");
+        try {
+            const data = await apiGet<InventoryItem[]>(
+                `/inventories/company/${companyId}`
+            );
+            setInventory(data);
+        } catch (err: any) {
+            setError(err.message);
+        }
+    };
+
+    useEffect(() => {
+        if (!goodId) {
+            setOrderBook(null);
+            return;
+        }
+
+        const loadOrderBook = () => {
+            apiGet<OrderBook>(`/market/orderbook/${goodId}`)
+                .then(setOrderBook)
+                .catch((err) => setError(err.message));
+        };
+
+        loadOrderBook();
+        const interval = setInterval(loadOrderBook, 2000);
+
+        return () => clearInterval(interval);
+    }, [goodId]);
+
+    //Market history
+    useEffect(() => {
+        const loadTrades = () => {
+            apiGet<MarketTrade[]>("/market/trades")
+                .then(setTrades)
+                .catch((err) => setError(err.message));
+        };
+
+        loadTrades();
+        const interval = setInterval(loadTrades, 3000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+
+    //Order book
+    useEffect(() => {
+        loadOrders();
+        const interval = setInterval(loadOrders, 2000);
+        return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+    if (!companyId) return;
+    loadInventory();
+}, [orders]);
+
+
+    useEffect(() => {
+        apiGet<Good[]>("/goods")
+            .then(setGoods)
+            .catch((err) => setError(err.message));
+    }, []);
+
+
+    // Load companies once
+    useEffect(() => {
+        apiGet<Company[]>("/companies")
+            .then(setCompanies)
+            .catch((err) => setError(err.message));
+    }, []);
+
+    // Load inventory when company changes
+    useEffect(() => {
+        loadInventory();
+    }, [companyId]);
+
+    //Market statistics
+    useEffect(() => {
+        if (!goodId) {
+            setMarketStats(null);
+            return;
+        }
+
+        const loadStats = () => {
+            apiGet<MarketStats>(`/market/stats/${goodId}`)
+                .then(setMarketStats)
+                .catch((err) => setError(err.message));
+        };
+
+        loadStats();
+        const interval = setInterval(loadStats, 2000);
+
+        return () => clearInterval(interval);
+    }, [goodId]);
+
+    useEffect(() => {
+        if (!selectedGoodForChart) {
+            setCandles([]);
+            return;
+        }
+
+        apiGet<Candle[]>(`/market/candles/${selectedGoodForChart}?minutes=60`)
+            .then(setCandles)
+            .catch(err => setError(err.message));
+    }, [selectedGoodForChart]);
+
+
+    const selectedCompany = companies.find((c) => c.id === companyId);
+
+    const buyOrders = orders
+        .filter((o) => o.status === "open" && o.order_type === "buy")
+        .sort(
+            (a, b) =>
+                b.price_per_unit - a.price_per_unit || a.id - b.id
+        );
+
+    const sellOrders = orders
+        .filter((o) => o.status === "open" && o.order_type === "sell")
+        .sort(
+            (a, b) =>
+                a.price_per_unit - b.price_per_unit || a.id - b.id
+    );
+
+    const submitOrder = async () => {
+        if (!companyId || !goodId) {
+            setError("Select company and good");
             return;
         }
 
@@ -116,7 +241,12 @@ export default function MarketPage() {
                 quantity,
             });
 
-            await loadOrders();
+            // 🔁 Explicitly sync state
+            await Promise.all([
+                loadOrders(),
+                loadInventory(), // 👈 THIS is what you were missing
+            ]);
+
             setPrice(0);
             setQuantity(0);
             setError(null);
@@ -126,102 +256,101 @@ export default function MarketPage() {
     };
 
     const cancelOrder = async (orderId: number) => {
+        if (!companyId) return;
+
         try {
-            await apiPost(`/market/orders/${orderId}/cancel?company_id=${companyId}`, {});
-            await loadOrders();
-        } catch (err: any) {
-            setError(err.message);
+            await apiPost(
+                `/market/orders/${orderId}/cancel?company_id=${companyId}`,
+                {}
+            );
+
+            await Promise.all([
+                loadOrders(),
+                loadInventory(),
+            ]);
+        } catch (e: any) {
+            setError(e.message);
         }
     };
 
-    // ---- EFFECTS (copy one by one) ----
 
-    // Load goods
-    useEffect(() => {
-        apiGet<Good[]>("/goods").then(setGoods).catch(console.error);
-    }, []);
 
-    // Poll orders
-    useEffect(() => {
-        if (!companyId) return;
-
-        loadOrders();
-        const i = setInterval(loadOrders, 2000);
-        return () => clearInterval(i);
-    }, [companyId]);
-
-    // Order book
-    useEffect(() => {
-        if (!goodId) {
-            setOrderBook(null);
-            return;
-        }
-
-        const load = () => {
-            apiGet<OrderBook>(`/market/orderbook/${goodId}`)
-                .then(setOrderBook)
-                .catch(console.error);
-        };
-
-        load();
-        const i = setInterval(load, 2000);
-        return () => clearInterval(i);
-    }, [goodId]);
-
-    // Market stats
-    useEffect(() => {
-        if (!goodId) {
-            setMarketStats(null);
-            return;
-        }
-
-        const load = () => {
-            apiGet<MarketStats>(`/market/stats/${goodId}`)
-                .then(setMarketStats)
-                .catch(console.error);
-        };
-
-        load();
-        const i = setInterval(load, 2000);
-        return () => clearInterval(i);
-    }, [goodId]);
-
-    // Candles
-    useEffect(() => {
-        if (!selectedGoodForChart) {
-            setCandles([]);
-            return;
-        }
-
-        apiGet<Candle[]>(
-            `/market/candles/${selectedGoodForChart}?minutes=60`
-        )
-            .then(setCandles)
-            .catch(console.error);
-    }, [selectedGoodForChart]);
-
-    // Trades
-    useEffect(() => {
-        const load = () => {
-            apiGet<MarketTrade[]>("/market/trades")
-                .then(setTrades)
-                .catch(console.error);
-        };
-
-        load();
-        const i = setInterval(load, 3000);
-        return () => clearInterval(i);
-    }, []);
-
-    // ---- JSX (copy unchanged) ----
     return (
-        <>
-            <h1>Market</h1>
+        <div style={{ padding: 20, fontFamily: "sans-serif" }}>
+            <h1>Economy Dashboard</h1>
 
-            {error && <div style={{ color: "red" }}>{error}</div>}
+            {error && (
+                <div style={{ color: "red", marginBottom: 10 }}>
+                    {error}
+                </div>
+            )}
 
+            {/* Company Selector */}
+            <div style={{ marginBottom: 20 }}>
+                <label>
+                    Company:&nbsp;
+                    <select
+                        value={companyId ?? ""}
+                        onChange={(e) =>
+                            setCompanyId(
+                                e.target.value ? Number(e.target.value) : null
+                            )
+                        }
+                    >
+                        <option value="">Select company</option>
+                        {companies.map((c) => (
+                            <option key={c.id} value={c.id}>
+                                {c.name}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+
+                {selectedCompany && (
+                    <span style={{ marginLeft: 20 }}>
+                        💰 Cash: <strong>{selectedCompany.cash}</strong>
+                    </span>
+                )}
+            </div>
+
+            {/* Inventory */}
+            {companyId && (
+                <>
+                    <h2>Inventory</h2>
+
+                    {inventory.length === 0 ? (
+                        <p>No inventory</p>
+                    ) : (
+                        <table border={1} cellPadding={6}>
+                            <thead>
+                                <tr>
+                                    <th>Good</th>
+                                    <th>Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {inventory.map((item) => (
+                                    <tr key={item.good_id}>
+                                        <td>{item.good_name ?? item.good_id}</td>
+                                        <td>
+                                            {item.quantity - item.reserved} available
+                                            {item.reserved > 0 && (
+                                                <span style={{ color: "gray" }}>
+                                                    {" "}({item.reserved} reserved)
+                                                </span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </>
+            )}
             {(
                 <>
+                    <h2>Market</h2>
+
                     <table border={1} cellPadding={6}>
                         <thead>
                             <tr>
@@ -302,7 +431,8 @@ export default function MarketPage() {
                             <Bar
                                 dataKey={(d) => Math.abs(d.close - d.open)}
                                 fill={(d: any) =>
-                                    d.close >= d.open ? "#4caf50" : "#f44336"}
+                                    d.close >= d.open ? "#4caf50" : "#f44336"
+                                }
                                 yAxisId={0}
                             />
                         </ComposedChart>
@@ -393,10 +523,10 @@ export default function MarketPage() {
                         <div style={{ marginBottom: 20 }}>
                             <h2>Market Stats</h2>
                             <div style={{ display: "flex", gap: 20 }}>
-                                <div>Last price: <strong>{marketStats.last_price ?? "�"}</strong></div>
-                                <div>Best bid: <strong>{marketStats.best_bid ?? "�"}</strong></div>
-                                <div>Best ask: <strong>{marketStats.best_ask ?? "�"}</strong></div>
-                                <div>Spread: <strong>{marketStats.spread ?? "�"}</strong></div>
+                                <div>Last price: <strong>{marketStats.last_price ?? "–"}</strong></div>
+                                <div>Best bid: <strong>{marketStats.best_bid ?? "–"}</strong></div>
+                                <div>Best ask: <strong>{marketStats.best_ask ?? "–"}</strong></div>
+                                <div>Spread: <strong>{marketStats.spread ?? "–"}</strong></div>
                             </div>
                         </div>
                     )}
@@ -450,6 +580,8 @@ export default function MarketPage() {
 
                 </>
             )}
-        </>
+        </div>
     );
 }
+
+export default App;
