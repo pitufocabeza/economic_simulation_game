@@ -1,0 +1,16 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\backend",
+    "\\backend\\alembic",
+    "\\backend\\alembic\\versions",
+    "\\backend\\app",
+    "\\backend\\app\\models",
+    "\\backend\\app\\schemas",
+    "\\frontend",
+    "\\frontend\\src",
+    "\\frontend\\src\\Pages"
+  ],
+  "SelectedNode": "\\backend\\app\\schemas\\inventory.py",
+  "PreviewInSolutionExplorer": false
+}

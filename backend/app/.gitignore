@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# FastAPI / Alembic
+instance/
+alembic/versions/*.pyc
+
+# Godot (future)
+.godot/
+.import/
+.export/
+export.cfg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+.vs
