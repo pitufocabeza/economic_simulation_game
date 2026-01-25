@@ -1,8 +1,5 @@
-﻿from datetime import datetime
-
-import sqlalchemy as sa
-from sqlalchemy import ForeignKey, Integer, Boolean, DateTime, Float
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+﻿from sqlalchemy import ForeignKey, DateTime, Boolean, Integer, Float, func
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
 
@@ -13,50 +10,35 @@ class ExtractionSite(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     company_id: Mapped[int] = mapped_column(
-        ForeignKey("companies.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
+        ForeignKey("companies.id"), nullable=False, index=True
     )
 
     location_id: Mapped[int] = mapped_column(
-        ForeignKey("locations.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
+        ForeignKey("locations.id"), nullable=False, index=True
     )
 
     good_id: Mapped[int] = mapped_column(
-        ForeignKey("goods.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
+        ForeignKey("goods.id"), nullable=False, index=True
     )
 
     rate_per_hour: Mapped[int] = mapped_column(Integer, nullable=False)
 
     active: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=True,
+        Boolean, nullable=False, server_default="true"
     )
 
     production_buffer: Mapped[float] = mapped_column(
-        Float,
+        Float, nullable=False, server_default="0"
+    )
+
+    # ✅ IMPORTANT FIXES
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True),
         nullable=False,
-        default=0.0,
+        server_default=func.now(),
     )
 
-
-    created_at: Mapped[datetime] = mapped_column(
-    sa.DateTime(timezone=True),
-    nullable=False,
+    last_extracted_at: Mapped[DateTime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
-  
-    last_extracted_at: Mapped[datetime | None] = mapped_column(
-    sa.DateTime(timezone=True),
-    nullable=True,
-    )
-
-
-    # Relationships (optional but very useful)
-    company = relationship("Company")
-    location = relationship("Location")
-    good = relationship("Good")

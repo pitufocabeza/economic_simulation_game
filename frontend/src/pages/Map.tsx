@@ -39,6 +39,7 @@ export default function MapPage() {
         try {
             const data = await apiGet<{ locations: Location[] }>("/map");
             setLocations(data.locations);
+            return data.locations;
         } catch (e: any) {
             setError(e.message);
         }
@@ -56,7 +57,12 @@ export default function MapPage() {
                 `/locations/${locationId}/claim?company_id=${companyId}`,
                 {}
             );
-            await loadMap();
+            const updatedLocations = await loadMap();
+
+            const updated = updatedLocations.find(l => l.id === locationId);
+            if (updated) {
+                setSelected(updated);
+            }
         } catch (e: any) {
             setError(e.message);
         }
@@ -65,21 +71,25 @@ export default function MapPage() {
     const buildExtractor = async (locationId: number, goodId: number) => {
         if (!companyId) return;
 
-        await apiPost("/extraction-sites/", {
-            company_id: companyId,
+        await apiPost(`/extraction-sites/?company_id=${companyId}`, {
             location_id: locationId,
             good_id: goodId,
             rate_per_hour: 5,
         });
 
-        await loadMap();
+        const updatedLocations = await loadMap();
+
+        const updated = updatedLocations.find(l => l.id === locationId);
+        if (updated) {
+            setSelected(updated);
+        }
     };
 
 
     return (
         <div style={{ display: "flex", gap: 30 }}>
             <div>
-                <h1>World Map</h1>
+                <h1>Exploration</h1>
                 {error && <div style={{ color: "red" }}>{error}</div>}
 
                 <svg width={600} height={600} style={{ border: "1px solid #444" }}>
