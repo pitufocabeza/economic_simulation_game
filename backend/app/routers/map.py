@@ -7,14 +7,14 @@ from app.models.resource_deposit import ResourceDeposit
 from app.models.extraction_site import ExtractionSite
 from app.models.good import Good
 from app.models.company import Company
-from app.simulation.tick import run_simulation_tick
+# from app.simulation.tick import run_simulation_tick
 
 router = APIRouter(prefix="/map", tags=["map"])
 
 
 @router.get("/")
 def get_map(db: Session = Depends(get_db)):
-    run_simulation_tick(db)
+    # run_simulation_tick(db)
     goods = {g.id: g.name for g in db.query(Good).all()}
     companies = {c.id: c.name for c in db.query(Company).all()}
 

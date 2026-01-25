@@ -3,6 +3,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
 
+class ProductionTier(str, Enum):
+    BASIC = "basic"
+    ADVANCED = "advanced"
+    HIGH_TECH = "high_tech"
 
 class ProductionRecipe(Base):
     __tablename__ = "production_recipes"

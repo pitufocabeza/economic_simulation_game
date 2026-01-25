@@ -6,7 +6,11 @@ from app.models.resource_deposit import ResourceDeposit
 from app.models.inventory import Inventory
 
 
-def tick_extraction(db: Session, now: datetime) -> dict:
+def tick_extraction(
+    db: Session,
+    now: datetime,
+    speed_multiplier: float,
+) -> dict:
     sites = (
         db.query(ExtractionSite)
         .filter(ExtractionSite.active == True)
@@ -18,7 +22,12 @@ def tick_extraction(db: Session, now: datetime) -> dict:
     processed_sites = 0
 
     for site in sites:
-        produced = tick_single_site(db, site, now)
+        produced = tick_single_site(
+            db=db,
+            site=site,
+            now=now,
+            speed_multiplier=speed_multiplier,
+        )
         total_produced += produced
         processed_sites += 1
 
@@ -27,21 +36,24 @@ def tick_extraction(db: Session, now: datetime) -> dict:
         "total_produced": total_produced,
     }
 
+
 def tick_single_site(
     db: Session,
     site: ExtractionSite,
     now: datetime,
+    speed_multiplier: float,
 ) -> int:
-    # First tick: initialize
+    # First tick: initialize timestamp
     if site.last_extracted_at is None:
         site.last_extracted_at = now
         return 0
 
-    elapsed_seconds = (now - site.last_extracted_at).total_seconds()
+    real_elapsed = (now - site.last_extracted_at).total_seconds()
+    elapsed_seconds = real_elapsed * speed_multiplier
+
     if elapsed_seconds <= 0:
         return 0
 
-    # fractional production
     produced_exact = (
         elapsed_seconds / 3600.0
     ) * site.rate_per_hour
@@ -71,7 +83,6 @@ def tick_single_site(
         return 0
 
     actual = min(produced_units, deposit.remaining_amount)
-
     deposit.remaining_amount -= actual
 
     inventory = (
