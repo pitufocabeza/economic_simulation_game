@@ -5,12 +5,13 @@
     "\\backend\\alembic",
     "\\backend\\alembic\\versions",
     "\\backend\\app",
-    "\\backend\\app\\scripts",
+    "\\backend\\app\\data",
+    "\\backend\\app\\models",
+    "\\backend\\app\\schemas",
     "\\frontend",
-    "\\frontend\\components",
     "\\frontend\\src",
-    "\\frontend\\src\\Pages"
+    "\\frontend\\src\\components"
   ],
-  "SelectedNode": "\\backend\\app\\schemas\\extraction_site.py",
+  "SelectedNode": "\\backend\\app\\scripts\\seed_goods.py",
   "PreviewInSolutionExplorer": false
 }

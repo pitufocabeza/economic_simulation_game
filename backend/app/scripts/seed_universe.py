@@ -236,19 +236,15 @@ def generate_location_resources(biome, total_resources, num_locations, is_outlaw
     for i in range(num_locations):
         # Share resources for this location
         upper_limit = remaining_resources // num_locations
-        lower_limit = max((5 * total_resources) // 100, remaining_resources // (2 * num_locations))
-
-        # Ensure the range is valid
-        lower_limit = min(lower_limit, upper_limit)
-
-        # Compute location share
+        lower_limit = max((5 * total_resources) // 100, min(remaining_resources // (2 * num_locations), upper_limit))
         location_share = random.randint(lower_limit, upper_limit)
 
-        # If this is the last location, allocate all remaining resources
-        if i == num_locations - 1:
-            location_share = remaining_resources
+        if lower_limit > upper_limit:
+            lower_limit, upper_limit = upper_limit, lower_limit
 
-        # Allocate resources for this location
+        if i == num_locations - 1:
+            location_share = remaining_resources  # Allocate any remaining resources to the last location
+
         location_resources = []
         for resource_rule in biome_rules:
             weight_percentage = (resource_rule["weight"] * rarity_boost) / sum(
@@ -263,13 +259,7 @@ def generate_location_resources(biome, total_resources, num_locations, is_outlaw
                     "rarity": resource_rule["rarity"],
                 })
 
-        # Subtract the allocated share from remaining resources
         remaining_resources -= location_share
-
-        # Ensure `remaining_resources` doesn't go negative
-        remaining_resources = max(0, remaining_resources)
-
-        # Save the allocated resources
         locations.append(location_resources)
 
     return locations
