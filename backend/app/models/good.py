@@ -1,13 +1,13 @@
-from sqlalchemy import String, Enum
+from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
-
 from app.db import Base
-from app.schemas.good_enums import GoodsCategory, GoodsRarity  # Enum definitions
+
 
 class Good(Base):
     __tablename__ = "goods"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(50), unique=True, index=True)
-    category: Mapped[GoodsCategory] = mapped_column(Enum(GoodsCategory), nullable=False)  # New column for category
-    rarity: Mapped[GoodsRarity] = mapped_column(Enum(GoodsRarity), nullable=False)  # New column for rarity
+    id: Mapped[int] = mapped_column(primary_key=True)  # Unique identifier
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)  # Name of the good
+    primary_category: Mapped[str] = mapped_column(String, nullable=False)  # High-level grouping
+    subcategory: Mapped[str | None] = mapped_column(String, nullable=True)  # Optional finer classification
+    rarity: Mapped[str] = mapped_column(String, nullable=False)  # Rarity of the good

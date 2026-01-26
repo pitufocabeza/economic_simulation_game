@@ -14,6 +14,7 @@ class Planet(Base):
     # Planetary biome type (e.g., desert, jungle, oceanic)
     biome: Mapped[str] = mapped_column(String, nullable=False)
     radius: Mapped[float] = mapped_column(nullable=False, default=6371.0)  # Earth's radius in km
+    total_resources: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)  # Track resources for the planet
 
     # Relations
     star_system = relationship("StarSystem", back_populates="planets")
