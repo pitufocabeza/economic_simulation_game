@@ -21,22 +21,6 @@ def create_company(payload: CompanyCreate, db: Session = Depends(get_db)):
     db.add(company)
     db.flush()  # get company.id without committing
 
-    # 2. Find starting good
-    iron = db.query(Good).filter(Good.name == "Iron").first()
-    if not iron:
-        raise HTTPException(
-            status_code=500,
-            detail="Starting good 'Iron' does not exist",
-        )
-
-    # 3. Create starting inventory
-    inventory = Inventory(
-        company_id=company.id,
-        good_id=iron.id,
-        quantity=100,
-    )
-    db.add(inventory)
-
     # 4. Commit everything together
     db.commit()
     db.refresh(company)

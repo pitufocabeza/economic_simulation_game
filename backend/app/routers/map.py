@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from app.deps import get_db
 from app.models.location import Location
 from app.models.resource_deposit import ResourceDeposit
-from app.models.extraction_site import ExtractionSite
 from app.models.good import Good
 from app.models.company import Company
 # from app.simulation.tick import run_simulation_tick
