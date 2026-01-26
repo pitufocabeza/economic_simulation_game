@@ -16,6 +16,7 @@ class LocationRead(BaseModel):
     biome: str
     claimed: bool
     resources: list[ResourcePreview] = []
+    planet: PlanetRead
 
     class Config:
         from_attributes = True

@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from app.deps import get_db
 from app.models.location import Location
 from app.models.company import Company
-from app.models.resource_deposit import ResourceDeposit
 from app.schemas.location import LocationRead
 
 router = APIRouter(prefix="/locations", tags=["locations"])

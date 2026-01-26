@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+"""
 from app.routers.goods import router as goods_router
 from app.routers.companies import router as companies_router
 from app.routers.inventories import router as inventories_router
@@ -11,7 +12,7 @@ from app.routers.market_trades import router as market_trades_router
 from app.routers.locations import router as locations_router
 from app.routers import map as map_router
 from app.routers.simulation import router as simulation_router
-
+"""
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -25,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+"""
 app.include_router(goods_router)
 app.include_router(companies_router)
 app.include_router(inventories_router)
@@ -37,7 +38,7 @@ app.include_router(market_trades_router)
 app.include_router(locations_router)
 app.include_router(map_router.router)
 app.include_router(simulation_router)
-
+"""
 
 
 @app.get("/health")
