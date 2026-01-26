@@ -9,6 +9,7 @@ from app.models.resource_deposit import ResourceDeposit
 from app.db import SessionLocal
 import random
 import math
+from collections import Counter
 
 # Universe constants
 CORE_REGION_NAMES = [
@@ -25,8 +26,8 @@ OUTLAW_REGION_NAMES = [
     "Bone Nebula", "Ruinspike Marches", "Ashen Vortex", "Predator's Edge", "Exile's Gambit"
 ]
 
-CORE_REGION_SYSTEMS = (20, 28)
-OUTLAW_REGION_SYSTEMS = (5, 15)
+CORE_REGION_SYSTEMS = (20, 27)
+OUTLAW_REGION_SYSTEMS = (12, 15)
 PLANETS_PER_SYSTEM = (4, 9)
 TOTAL_PLANETS = 4000
 
@@ -45,6 +46,15 @@ STAR_TYPES = [
     {"type": "White Dwarf", "size": "Tiny", "temperature": (8000, 40000), "luminosity": "Low", "weight": 5},
 ]
 
+# Define weights for choosing biomes
+BIOME_WEIGHTS = {
+    "Barren": 40,
+    "Oceanic": 25,
+    "Ice": 20,
+    "Temperate": 10,
+    "Volcanic": 5,
+}
+
 BIOME_RESOURCE_RULES = {
     "Barren": [
         {"resource_type": "Iron Ore", "rarity": "common", "weight": 40},
@@ -52,6 +62,15 @@ BIOME_RESOURCE_RULES = {
         {"resource_type": "Coal", "rarity": "common", "weight": 20},
         {"resource_type": "Quartz", "rarity": "common", "weight": 10},
         {"resource_type": "Hydrogen", "rarity": "common", "weight": 10},
+        {"resource_type": "Aluminum Ore", "rarity": "common", "weight": 30},
+        {"resource_type": "Zinc Ore", "rarity": "common", "weight": 20},
+        {"resource_type": "Lead Ore", "rarity": "rare", "weight": 10},
+        {"resource_type": "Nickel Ore", "rarity": "rare", "weight": 5},
+        {"resource_type": "Gold", "rarity": "rare", "weight": 5},
+        {"resource_type": "Plutonium", "rarity": "rare", "weight": 5},
+        {"resource_type": "Nitrogen", "rarity": "common", "weight": 20},
+        {"resource_type": "Titanium Ore", "rarity": "rare", "weight": 15},
+        {"resource_type": "Oxygen", "rarity": "common", "weight": 15},
     ],
     "Oceanic": [
         {"resource_type": "Iron Ore", "rarity": "common", "weight": 10},
@@ -59,14 +78,22 @@ BIOME_RESOURCE_RULES = {
         {"resource_type": "Coal", "rarity": "common", "weight": 10},
         {"resource_type": "Quartz", "rarity": "common", "weight": 30},
         {"resource_type": "Hydrogen", "rarity": "common", "weight": 60},
+        {"resource_type": "Biomass", "rarity": "common", "weight": 30},
+        {"resource_type": "Wood", "rarity": "common", "weight": 20},
     ],
-    "Mountainous": [
+    "Ice": [
         {"resource_type": "Iron Ore", "rarity": "common", "weight": 50},
         {"resource_type": "Copper Ore", "rarity": "common", "weight": 30},
         {"resource_type": "Coal", "rarity": "common", "weight": 20},
         {"resource_type": "Quartz", "rarity": "common", "weight": 10},
         {"resource_type": "Hydrogen", "rarity": "common", "weight": 10},
         {"resource_type": "Titanium Ore", "rarity": "rare", "weight": 20},
+        {"resource_type": "Aluminum Ore", "rarity": "common", "weight": 30},
+        {"resource_type": "Zinc Ore", "rarity": "common", "weight": 20},
+        {"resource_type": "Lead Ore", "rarity": "rare", "weight": 15},
+        {"resource_type": "Gold", "rarity": "rare", "weight": 10},
+        {"resource_type": "Nitrogen", "rarity": "common", "weight": 25},
+        {"resource_type": "Oxygen", "rarity": "common", "weight": 20},
     ],
     "Temperate": [
         {"resource_type": "Iron Ore", "rarity": "common", "weight": 20},
@@ -74,6 +101,12 @@ BIOME_RESOURCE_RULES = {
         {"resource_type": "Coal", "rarity": "common", "weight": 50},
         {"resource_type": "Quartz", "rarity": "common", "weight": 10},
         {"resource_type": "Hydrogen", "rarity": "common", "weight": 20},
+        {"resource_type": "Biomass", "rarity": "common", "weight": 40},
+        {"resource_type": "Wood", "rarity": "common", "weight": 30},
+        {"resource_type": "Gold", "rarity": "rare", "weight": 10},
+        {"resource_type": "Nickel Ore", "rarity": "rare", "weight": 5},
+        {"resource_type": "Nitrogen", "rarity": "common", "weight": 15},
+        {"resource_type": "Oxygen", "rarity": "common", "weight": 25},
     ],
     "Volcanic": [
         {"resource_type": "Iron Ore", "rarity": "common", "weight": 30},
@@ -81,7 +114,13 @@ BIOME_RESOURCE_RULES = {
         {"resource_type": "Coal", "rarity": "common", "weight": 40},
         {"resource_type": "Quartz", "rarity": "common", "weight": 20},
         {"resource_type": "Hydrogen", "rarity": "common", "weight": 10},
-        {"resource_type": "Titanium Ore", "rarity": "rare", "weight": 10},
+        {"resource_type": "Titanium Ore", "rarity": "rare", "weight": 25},
+        {"resource_type": "Lead Ore", "rarity": "rare", "weight": 5},
+        {"resource_type": "Platinum", "rarity": "exotic", "weight": 5},
+        {"resource_type": "Palladium", "rarity": "exotic", "weight": 8},
+        {"resource_type": "Uranium", "rarity": "rare", "weight": 30},
+        {"resource_type": "Helium-3", "rarity": "exotic", "weight": 5},
+        {"resource_type": "Plutonium", "rarity": "rare", "weight": 20},
     ],
 }
 
@@ -146,11 +185,11 @@ def calculate_total_resource_capacity(biome, radius):
     Calculate the total resources available on a planet based on its biome and radius.
     """
     biome_base = {
-        "Barren": 50000,
-        "Oceanic": 60000,
-        "Mountainous": 80000,
-        "Temperate": 70000,
-        "Volcanic": 1000000,
+        "Barren": 10000000,
+        "Oceanic": 11000000,
+        "Ice": 14000000,
+        "Temperate": 12000000,
+        "Volcanic": 18000000,
     }
     base_capacity = biome_base.get(biome, 50000)
     return int(base_capacity * (radius / 5000))
@@ -196,13 +235,20 @@ def generate_location_resources(biome, total_resources, num_locations, is_outlaw
 
     for i in range(num_locations):
         # Share resources for this location
-        location_share = random.randint(
-            max(500, remaining_resources // (2 * num_locations)),
-            remaining_resources // num_locations
-        )
-        if i == num_locations - 1:
-            location_share = remaining_resources  # Allocate any remaining resources to the last location
+        upper_limit = remaining_resources // num_locations
+        lower_limit = max((5 * total_resources) // 100, remaining_resources // (2 * num_locations))
 
+        # Ensure the range is valid
+        lower_limit = min(lower_limit, upper_limit)
+
+        # Compute location share
+        location_share = random.randint(lower_limit, upper_limit)
+
+        # If this is the last location, allocate all remaining resources
+        if i == num_locations - 1:
+            location_share = remaining_resources
+
+        # Allocate resources for this location
         location_resources = []
         for resource_rule in biome_rules:
             weight_percentage = (resource_rule["weight"] * rarity_boost) / sum(
@@ -217,7 +263,13 @@ def generate_location_resources(biome, total_resources, num_locations, is_outlaw
                     "rarity": resource_rule["rarity"],
                 })
 
+        # Subtract the allocated share from remaining resources
         remaining_resources -= location_share
+
+        # Ensure `remaining_resources` doesn't go negative
+        remaining_resources = max(0, remaining_resources)
+
+        # Save the allocated resources
         locations.append(location_resources)
 
     return locations
@@ -259,11 +311,26 @@ def seed_locations_and_resources(db, planet, num_locations):
         x = random.uniform(0, planet_width)  # Full surface width
         y = random.uniform(0, planet_width)  # Full surface height
 
+        x_normalized = x / planet_width
+        y_normalized = y / planet_width
+        z = x_normalized + y_normalized / 2 * planet.radius * 0.1 # Scale z-axis variation to 10% of planet radius
+
+        center_x, center_y = planet_width / 2, planet_width /2
+        distance_from_center = math.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
+        radial_z = (1 - distance_from_center / (planet_width / 2)) * planet.radius * 0.1
+        radial_z = max(0, radial_z)  # Prevent negative elevations
+
+        # Combine gradient and radial effects, and add noise for variation
+        z = (z + radial_z) / 2  # Average the gradient and radial calculations
+        z += random.uniform(-planet.radius * 0.02, planet.radius * 0.02)  # Add some noise
+        z = max(0, z)  # Ensure z is not negative
+
         location = Location(
             name=f"{planet.name} Plot {idx + 1}",
             planet_id=planet.id,
             x=x,
             y=y,
+            z=z,
             biome=planet.biome,
         )
         locations.append(location)
@@ -287,10 +354,91 @@ def seed_locations_and_resources(db, planet, num_locations):
 
 
 ### Main Seeding Function ###
+import uuid
+
 def seed_universe(db):
     """
-    Seed the entire universe, including regions, star systems, planets, and locations.
+    Seed the universe with procedurally named core and outlaw star systems, and planets.
     """
+    import random
+
+    CORE_STAR_SYSTEM_NAMES = [
+    # Core Stellar Names (1-50)
+    "Aetheris", "Vortexia", "Nebulon", "Quasara", "Pulsara", "Stellaris", "Coronae", "Helixion", "Photonis", "Luminara",
+    "Spectra", "Radiara", "Novaris", "Hyperion", "Zentara", "Astralix", "Celestara", "Orionis", "Sirius Major", "Vega Prime",
+    "Rigelion", "Betelgeuse", "Procyon", "Altair Nexus", "Denebola", "Spica", "Arcturus", "Aldebaran", "Antares", "Capella",
+    "Castor", "Pollux", "Regulus", "Deneb", "Fomalhaut", "Achernar", "Mira", "Alnilam", "Alnitak", "Mintaka", "Bellatrix",
+    "Saiph", "Alphard", "Mirfak", "Menkent", "Atria", "Gacrux", "Acrux", "Mimosa", "Gienah", "Alshain",
+    
+    # Nebula Regions (51-100)
+    "Horsehead", "Eagle Nebula", "Crab Pulsar", "Ring Nebula", "Dumbbell", "Cat's Eye", "Owl Nebula", "Helix Nebula",
+    "Planetary Veil", "Witch's Head", "Lagoon Core", "Trifid Rift", "Orion Veil", "Rosette Cluster", "Cone Nebula",
+    "Elephant Trunk", "Pelican Drift", "North America", "Pacific Nebula", "Atlantic Drift", "Carina Vortex",
+    "Tarantula", "Eta Carina", "Homunculus", "Keyhole", "Bubble Sector", "Wizard Drift", "Iris Nebula", "Cocoon Star",
+    "Flame Belt", "Pillow Nebula", "Monkey Head", "Propeller", "Red Rectangle", "Blue Flash", "Diamond Ring",
+    "Ghost Head", "Frog Nebula", "Tadpole", "Butterfly Wing", "Dragonfish", "Seahorse", "Skull Nebula",
+    "Snow Globe", "Cosmic Rose", "Stingray", "Mystic Mountain", "Pillars Reach", "Dark Horse", "Shadow Veil",
+    
+    # Constellation Zones (101-150)
+    "Draco Prime", "Cygnus Rift", "Lyra Cluster", "Aquila Vortex", "Sagitta Arrow", "Vulpecula", "Delphinus",
+    "Sagittarius A", "Scutum Star", "Serpens Cauda", "Ophiuchus", "Hercules Crown", "Boötes Void",
+    "Corona Borealis", "Ursa Majoris", "Ursa Minor", "Cassiopeia A", "Cepheus Pole", "Camelopardalis",
+    "Auriga Chariot", "Perseus Double", "Taurus Rift", "Gemini Twins", "Cancer Cluster", "Leo Regulus",
+    "Virgo Spica", "Libra Scales", "Scorpius Heart", "Capricornus Sea", "Aquarius Water", "Pisces Void",
+    "Aries Ram", "Centaurus Alpha", "Lupus Wolf", "Crux Southern", "Musca Fly", "Chamaeleon",
+    "Volans Fish", "Pictor Painter", "Carina Keel", "Vela Sail", "Puppis Stern", "Pyxis Compass",
+    "Antlia Air", "Hydra Head", "Sextans", "Crater Cup", "Corvus Crow", "Ursa Furnace",
+    
+    # Quantum & Exotic (151-200)
+    "Singularity", "Event Horizon", "Hawking Point", "Schwarzschild", "Kerr Metric", "Wormhole Alpha",
+    "Tachyon Drift", "Dark Energy", "Zero Point", "Quantum Flux", "Planck Scale", "Heisenberg Veil",
+    "Dirac Sea", "Bose Condensate", "Fermion Field", "Gluon Storm", "Neutrino Flow", "Photon Cascade",
+    "Plasma Vortex", "Magnetar Core", "Pulsar Spin", "Neutron Drift", "White Dwarf", "Red Giant",
+    "Blue Supergiant", "Yellow Dwarf", "Brown Dwarf", "Hypergiant", "Protostar", "T-Tauri",
+    "Herbig-Haro", "FU Orionis", "Pre-Main", "Main Sequence", "Post-Main", "Asymptotic Giant",
+    "Horizontal Branch", "RR Lyrae", "Cepheid Variable", "Long Period", "Mira Variable", "Symbiotic",
+    
+    # Galactic Features (201-250)
+    "Galactic Core", "Barred Spiral", "Disk Edge", "Spiral Arm", "Molecular Cloud", "HII Region",
+    "Supernova Remnant", "Planetary Nebula", "Open Cluster", "Globular Cluster", "Galactic Bulge",
+    "Halo Stars", "Thick Disk", "Thin Disk", "Interstellar Medium", "Dust Lane", "Starburst Ring",
+    "Nuclear Star", "Central Black Hole", "Accretion Disk", "Relativistic Jet", "Gamma Burst",
+    "Blazar Core", "Quasar Jet", "Active Nucleus", "Seyfert Galaxy", "Starburst Galaxy",
+    "Lenticular", "Elliptical Core", "Irregular Patch", "Dwarf Spheroidal", "Ultra Diffuse",
+    
+    # Mythic Stellar (251-300)
+    "Olympus Mons", "Asgard Gate", "Valhalla", "Midgard Light", "Asgard Reach", "Yggdrasil Core",
+    "Ragnarok Rift", "Bifrost Bridge", "Niflheim Ice", "Muspelheim Fire", "Jotunheim", "Alfheim",
+    "Svartalfheim", "Vanaheim", "Helheim Void", "Fenrir Chain", "Jormungandr", "Sleipnir Run",
+    "Odin's Eye", "Thor's Hammer", "Loki's Fire", "Freyja's Tears", "Heimdall Watch",
+    "Skadi Frost", "Njord Sea", "Tyr Justice", "Baldr Light", "Hodr Dark", "Forseti Law",
+    
+    # Bonus Prime Systems (301-310)
+    "Zenith Prime", "Apogee Prime", "Nadir Prime", "Perihelion", "Aphelion Drift", "Lagrange Point",
+    "Roche Lobe", "Hill Sphere", "Parker Spiral", "Alfven Wave"
+    ]
+    random.shuffle(CORE_STAR_SYSTEM_NAMES)
+
+    def get_outlaw_system_name():
+        """
+        Generate a UUID-like name for outlaw systems.
+        Example: 'AJI-MH', 'M-XR2'
+        """
+        return uuid.uuid4().hex[:3].upper() + "-" + uuid.uuid4().hex[:3].upper()
+
+    def int_to_roman(n):
+        """Convert an integer to a Roman numeral."""
+        val = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+        syms = ["M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"]
+        roman_num = ""
+        i = 0
+        while n > 0:
+            for _ in range(n // val[i]):
+                roman_num += syms[i]
+                n -= val[i]
+            i += 1
+        return roman_num
+
     # Step 1: Create the Universe
     universe = Universe(name=UNIVERSE_NAME)
     db.add(universe)
@@ -300,6 +448,7 @@ def seed_universe(db):
     all_regions, systems_per_region, planets_per_system = distribute_planets_and_systems(
         TOTAL_PLANETS, CORE_REGION_NAMES, OUTLAW_REGION_NAMES
     )
+
     region_coordinates = generate_region_coordinates()
     random.shuffle(region_coordinates)
 
@@ -317,13 +466,20 @@ def seed_universe(db):
         db.add(region)
     db.flush()
 
-    # Step 3: Seed Star Systems and Planets
+    # Step 3: Seed Star Systems
     seeded_systems = []
-    seeded_planets = []
     for region, system_count in zip(seeded_regions, systems_per_region):
+        is_core = region.name in CORE_REGION_NAMES
         for _ in range(system_count):
+            if is_core:
+                # Use meaningful core system names
+                system_name = CORE_STAR_SYSTEM_NAMES.pop()
+            else:
+                # Use UUID-like name for outlaw systems
+                system_name = get_outlaw_system_name()
+
             system = StarSystem(
-                name=f"{region.name} System {random.randint(1, 1000)}",
+                name=system_name,
                 region_id=region.id,
                 x=random.uniform(0, STAR_SYSTEM_SCALE),
                 y=random.uniform(0, STAR_SYSTEM_SCALE),
@@ -331,32 +487,45 @@ def seed_universe(db):
             )
             seeded_systems.append(system)
             db.add(system)
-            db.flush()
+    db.flush()
 
-            # Generate planets for the system
-            for _ in range(random.randint(*PLANETS_PER_SYSTEM)):
-                biome = random.choice(list(BIOME_RESOURCE_RULES.keys()))
-                radius = random.uniform(3000, 7000)
-                total_resources = calculate_total_resource_capacity(biome, radius)
-                num_locations = calculate_num_locations(radius)
+    # Step 4: Seed Planets
+    seeded_planets = []
+    
+    # Extract biome options and weights for weighted selection
+    biome_choices = list(BIOME_WEIGHTS.keys())
+    biome_weights = list(BIOME_WEIGHTS.values())
+    
+    for system, num_planets in zip(seeded_systems, planets_per_system):
+        for planet_num in range(1, num_planets + 1):
+            # Choose a biome using the weighted list
+            biome = random.choices(biome_choices, weights=biome_weights, k=1)[0]  
+            
+            # Generate random values for radius and resources
+            radius = random.uniform(3000, 7000)
+            total_resources = calculate_total_resource_capacity(biome, radius)
 
-                planet = Planet(
-                    name=f"{system.name} Planet {random.randint(1, 1000)}",
-                    star_system_id=system.id,
-                    biome=biome,
-                    radius=radius,
-                    total_resources=total_resources,
-                )
-                seeded_planets.append(planet)
-                db.add(planet)
-                db.flush()
+            # Name the planet based on the system name and Roman numeral
+            planet_name = f"{system.name} {int_to_roman(planet_num)}"
 
-                # Seed locations and resources on the planet
-                seed_locations_and_resources(db, planet, num_locations)
+            planet = Planet(
+                name=planet_name,
+                star_system_id=system.id,
+                biome=biome,
+                radius=radius,
+                total_resources=total_resources,
+            )
+            seeded_planets.append(planet)
+            db.add(planet)
+    db.flush()
 
-    db.commit()
+    # Step 5: Seed Locations and Resources for Each Planet
+    for planet in seeded_planets:
+        num_locations = calculate_num_locations(planet.radius)
+        seed_locations_and_resources(db, planet, num_locations)
+
+        db.commit()
     print(f"Seeded {len(seeded_regions)} regions, {len(seeded_systems)} systems, {len(seeded_planets)} planets.")
-
     
 
 if __name__ == "__main__":
@@ -365,6 +534,7 @@ if __name__ == "__main__":
         print("Seeding the universe...")
         seed_universe(db)
     except Exception as e:
-        print(f"An error occured during seeding: {e}")
+        import traceback
+        print(f"An error occured during seeding: {traceback.format_exc()}")
     finally:
         db.close()
