@@ -4,41 +4,49 @@ from app.db import SessionLocal
 
 # Define all raw resources with category and rarity
 RAW_RESOURCES = [
-    # Energy
-    {"name": "Solar Energy", "category": "energy", "rarity": "common"},
-    {"name": "Geothermal Energy", "category": "energy", "rarity": "common"},
-    {"name": "Hydrogen", "category": "energy", "rarity": "common"},
-    {"name": "Helium-3", "category": "energy", "rarity": "exotic"},
-    {"name": "Uranium", "category": "energy", "rarity": "rare"},
-
-    # Metal
+    # **Metals**
     {"name": "Iron Ore", "category": "metal", "rarity": "common"},
     {"name": "Copper Ore", "category": "metal", "rarity": "common"},
-    {"name": "Titanium", "category": "metal", "rarity": "rare"},
+    {"name": "Titanium Ore", "category": "metal", "rarity": "rare"},
     {"name": "Rare Earth Elements", "category": "metal", "rarity": "rare"},
+    {"name": "Gold", "category": "metal", "rarity": "rare"},
+    {"name": "Quartz", "category": "metal", "rarity": "common"},
 
-    # Organic
+    # **Energy**
+    {"name": "Hydrogen", "category": "energy", "rarity": "common"},
+    {"name": "Helium-3", "category": "energy", "rarity": "exotic"},
+    {"name": "Geothermal Energy", "category": "energy", "rarity": "common"},
+    {"name": "Uranium", "category": "energy", "rarity": "rare"},
+    {"name": "Coal", "category": "energy", "rarity": "common"},
+
+    # **Organic**
     {"name": "Medicinal Plants", "category": "organic", "rarity": "rare"},
     {"name": "Biofuel", "category": "organic", "rarity": "common"},
-    {"name": "Genetic Biomass", "category": "biotech", "rarity": "exotic"},
+    {"name": "Wood", "category": "organic", "rarity": "common"},
+    {"name": "Crops", "category": "organic", "rarity": "common"},
 
-    # Gaseous
-    {"name": "Methane", "category": "gaseous", "rarity": "rare"},
+    # **Gaseous**
+    {"name": "Methane", "category": "gaseous", "rarity": "common"},
     {"name": "Oxygen", "category": "gaseous", "rarity": "common"},
     {"name": "Carbon Dioxide", "category": "gaseous", "rarity": "common"},
+    {"name": "Nitrogen", "category": "gaseous", "rarity": "common"},
+    {"name": "Helium", "category": "gaseous", "rarity": "rare"},
 
-    # Chemical
+    # **Chemical**
     {"name": "Ammonia", "category": "chemical", "rarity": "common"},
     {"name": "Sulfuric Acid", "category": "chemical", "rarity": "common"},
     {"name": "Nitrous Oxide", "category": "chemical", "rarity": "rare"},
+    {"name": "Phosphates", "category": "chemical", "rarity": "common"},
+    {"name": "Chlorine", "category": "chemical", "rarity": "common"},
 
-    # Exotic
+    # **Exotic**
     {"name": "Exotic Crystals", "category": "exotic", "rarity": "rare"},
     {"name": "Dark Matter", "category": "exotic", "rarity": "exotic"},
 
-    # Biotech
-    {"name": "Engineered DNA", "category": "biotech", "rarity": "exotic"},
-    {"name": "Synthetic Proteins", "category": "biotech", "rarity": "rare"},
+    # **Construction and Other**
+    {"name": "Water", "category": "other", "rarity": "common"},
+    {"name": "Limestone", "category": "other", "rarity": "common"},
+    {"name": "Soil", "category": "other", "rarity": "common"},
 ]
 
 def seed_resources():
