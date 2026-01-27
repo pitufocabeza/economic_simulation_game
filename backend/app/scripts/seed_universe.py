@@ -29,7 +29,8 @@ OUTLAW_REGION_NAMES = [
 CORE_REGION_SYSTEMS = (20, 27)
 OUTLAW_REGION_SYSTEMS = (12, 15)
 PLANETS_PER_SYSTEM = (4, 9)
-TOTAL_PLANETS = 4000
+TOTAL_PLANETS = 10000
+MAX_NAMED_CORE_SYSTEMS = 300  # Limit fancy star system names
 
 UNIVERSE_NAME = "Riftforge Expanse"
 
@@ -125,15 +126,54 @@ BIOME_RESOURCE_RULES = {
 }
 
 ### Helper Functions ###
-def generate_region_coordinates():
-    """Generate non-overlapping region coordinates within the universe cube."""
+def calculate_distance_from_center(x, y, z, center_x=50000, center_y=50000, center_z=50000):
+    """Calculate distance from galactic center."""
+    return math.sqrt((x - center_x)**2 + (y - center_y)**2 + (z - center_z)**2)
+
+
+def generate_region_coordinates(num_core, num_outlaw):
+    """
+    Generate region coordinates with core regions near galactic center, outlaw on fringe.
+    Core regions: inner 1/3 of galaxy radius
+    Outlaw regions: outer 2/3 of galaxy radius (surrounding core)
+    """
+    center = UNIVERSE_SCALE / 2  # 50000
+    max_radius = math.sqrt(3) * (UNIVERSE_SCALE / 2)  # Max distance from center to corner
+    
+    core_max_distance = max_radius / 3  # Inner 1/3
+    outlaw_min_distance = core_max_distance  # Start where core ends
+    outlaw_max_distance = max_radius  # Full outer region
+    
     step = REGION_SCALE
-    return [
+    
+    # Generate all possible region positions
+    all_positions = [
         (x, y, z)
         for x in range(0, UNIVERSE_SCALE, step)
         for y in range(0, UNIVERSE_SCALE, step)
         for z in range(0, UNIVERSE_SCALE, step)
     ]
+    
+    # Separate positions by distance from center
+    core_candidates = []
+    outlaw_candidates = []
+    
+    for pos in all_positions:
+        distance = calculate_distance_from_center(pos[0], pos[1], pos[2])
+        
+        if distance <= core_max_distance:
+            core_candidates.append(pos)
+        elif distance >= outlaw_min_distance:
+            outlaw_candidates.append(pos)
+    
+    # Randomly select from candidates
+    random.shuffle(core_candidates)
+    random.shuffle(outlaw_candidates)
+    
+    core_positions = core_candidates[:num_core]
+    outlaw_positions = outlaw_candidates[:num_outlaw]
+    
+    return core_positions, outlaw_positions
 
 
 def distribute_planets_and_systems(total_planets, core_regions, outlaw_regions):
@@ -218,7 +258,28 @@ def calculate_num_locations(planet_radius, base_plot_size=1000000, reference_rad
     num_locations = int(surface_area / effective_plot_size)
 
     # Ensure the number of locations stays within min and max limits
-    return max(min_locations, min(num_locations, max_locations)) 
+    return max(min_locations, min(num_locations, max_locations))
+
+
+def calculate_grid_dimensions(planet_radius, min_size=16, max_size=32):
+    """
+    Calculate tilemap grid dimensions for a location based on planet size.
+    Larger planets have slightly bigger location tilemaps.
+    
+    :param planet_radius: Radius of the planet in kilometers.
+    :param min_size: Minimum grid size (default: 16x16).
+    :param max_size: Maximum grid size (default: 32x32).
+    :return: Tuple of (grid_width, grid_height)
+    """
+    # Scale grid size based on planet radius (3000-7000 km range)
+    normalized_radius = (planet_radius - 3000) / (7000 - 3000)  # 0.0 to 1.0
+    grid_size = int(min_size + (max_size - min_size) * normalized_radius)
+    
+    # Ensure it's a power of 2 for better tilemap performance
+    grid_size = 2 ** round(math.log2(grid_size))
+    grid_size = max(min_size, min(grid_size, max_size))
+    
+    return grid_size, grid_size 
 
 def generate_location_resources(biome, total_resources, num_locations, is_outlaw=False):
     """
@@ -237,10 +298,15 @@ def generate_location_resources(biome, total_resources, num_locations, is_outlaw
         # Share resources for this location
         upper_limit = remaining_resources // num_locations
         lower_limit = max((5 * total_resources) // 100, min(remaining_resources // (2 * num_locations), upper_limit))
-        location_share = random.randint(lower_limit, upper_limit)
-
-        if lower_limit > upper_limit:
-            lower_limit, upper_limit = upper_limit, lower_limit
+        
+        # Ensure lower_limit doesn't exceed upper_limit (can happen with many locations)
+        lower_limit = min(lower_limit, upper_limit)
+        
+        # Ensure we have a valid range
+        if lower_limit > upper_limit or upper_limit == 0:
+            location_share = remaining_resources  # Give all remaining to avoid errors
+        else:
+            location_share = random.randint(lower_limit, upper_limit)
 
         if i == num_locations - 1:
             location_share = remaining_resources  # Allocate any remaining resources to the last location
@@ -264,56 +330,53 @@ def generate_location_resources(biome, total_resources, num_locations, is_outlaw
 
     return locations
 
-def calculate_plot_size(planet_radius, num_locations):
-    """
-    Calculate the realistic size of each plot based on the planet's radius and the number of plots (locations).
-    
-    :param planet_radius: Radius of the planet in kilometers.
-    :param num_locations: Total number of locations on the planet.
-    :return: The width and height of each plot, in kilometers.
-    """
-    # Surface area of a sphere = 4 * pi * r^2
-    surface_area = 4 * math.pi * (planet_radius ** 2)
-
-    # Divide the surface area by the number of locations
-    plot_area = surface_area / num_locations
-
-    # Take the square root to get the side length of each plot (assuming square plots for simplicity)
-    plot_size = math.sqrt(plot_area)
-    return plot_size
-
 def seed_locations_and_resources(db, planet, num_locations):
     """
-    Seed locations and their resource deposits for a given planet, using realistic `x` and `y` coordinates.
+    Seed locations (claimable plots) for a given planet.
+    Each location will have its own tilemap for building that can be procedurally generated in Godot.
+    
+    :param db: Database session
+    :param planet: Planet object
+    :param num_locations: Number of claimable locations/plots on this planet
     """
-     # Calculate realistic plot size
-    plot_size = calculate_plot_size(planet.radius, num_locations)
-
-    # Calculate the half-dimensions of the planet's size in the coordinate system
+    # Calculate planet surface dimensions for positioning
     planet_width = math.sqrt(4 * math.pi * (planet.radius**2))  # Total "flat equivalent width"
-
-
+    
+    # Determine tilemap dimensions for locations on this planet
+    grid_width, grid_height = calculate_grid_dimensions(planet.radius)
+    
     locations = []
     deposits = []
+    
+    # Generate resource distribution across all locations
+    location_resources_list = generate_location_resources(
+        planet.biome, 
+        planet.total_resources, 
+        num_locations, 
+        "outlaw" in planet.star_system.region.name.lower()
+    )
 
     for idx in range(num_locations):
-        # Assign coordinates within the planet. Spread locations pseudo-randomly within the grid.
-        x = random.uniform(0, planet_width)  # Full surface width
-        y = random.uniform(0, planet_width)  # Full surface height
+        # Assign coordinates within the planet surface
+        x = random.uniform(0, planet_width)
+        y = random.uniform(0, planet_width)
 
+        # Calculate elevation (z) based on position
         x_normalized = x / planet_width
         y_normalized = y / planet_width
-        z = x_normalized + y_normalized / 2 * planet.radius * 0.1 # Scale z-axis variation to 10% of planet radius
+        z = x_normalized + y_normalized / 2 * planet.radius * 0.1
 
-        center_x, center_y = planet_width / 2, planet_width /2
+        center_x, center_y = planet_width / 2, planet_width / 2
         distance_from_center = math.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
         radial_z = (1 - distance_from_center / (planet_width / 2)) * planet.radius * 0.1
-        radial_z = max(0, radial_z)  # Prevent negative elevations
+        radial_z = max(0, radial_z)
 
-        # Combine gradient and radial effects, and add noise for variation
-        z = (z + radial_z) / 2  # Average the gradient and radial calculations
-        z += random.uniform(-planet.radius * 0.02, planet.radius * 0.02)  # Add some noise
-        z = max(0, z)  # Ensure z is not negative
+        z = (z + radial_z) / 2
+        z += random.uniform(-planet.radius * 0.02, planet.radius * 0.02)
+        z = max(0, z)
+        
+        # Generate a unique seed for this location's tilemap generation in Godot
+        tilemap_seed = random.randint(0, 2147483647)
 
         location = Location(
             name=f"{planet.name} Plot {idx + 1}",
@@ -322,22 +385,23 @@ def seed_locations_and_resources(db, planet, num_locations):
             y=y,
             z=z,
             biome=planet.biome,
+            grid_width=grid_width,
+            grid_height=grid_height,
+            tilemap_seed=tilemap_seed,
         )
         locations.append(location)
         db.add(location)
         db.flush()
 
-        # Generate resources for this location
-        location_resources = generate_location_resources(
-            planet.biome, planet.total_resources, num_locations, "outlaw" in planet.star_system.region.name.lower()
-        )
-        for resource in location_resources[idx]:
-            deposits.append(ResourceDeposit(
-                location_id=location.id,
-                resource_type=resource["resource_type"],
-                quantity=resource["quantity"],
-                rarity=resource["rarity"],
-            ))
+        # Add resources to this location
+        if idx < len(location_resources_list):
+            for resource in location_resources_list[idx]:
+                deposits.append(ResourceDeposit(
+                    location_id=location.id,
+                    resource_type=resource["resource_type"],
+                    quantity=resource["quantity"],
+                    rarity=resource["rarity"],
+                ))
 
     db.add_all(deposits)
     return locations
@@ -434,17 +498,21 @@ def seed_universe(db):
     db.add(universe)
     db.flush()
 
-    # Step 2: Generate regions and their coordinates
+    # Step 2: Generate regions and their coordinates with spatial distribution
     all_regions, systems_per_region, planets_per_system = distribute_planets_and_systems(
         TOTAL_PLANETS, CORE_REGION_NAMES, OUTLAW_REGION_NAMES
     )
 
-    region_coordinates = generate_region_coordinates()
-    random.shuffle(region_coordinates)
+    num_core = len(CORE_REGION_NAMES)
+    num_outlaw = len(OUTLAW_REGION_NAMES)
+    core_coordinates, outlaw_coordinates = generate_region_coordinates(num_core, num_outlaw)
 
     seeded_regions = []
-    for idx, name in enumerate(all_regions):
-        coords = region_coordinates.pop()
+    core_region_objects = []
+    outlaw_region_objects = []
+    
+    # Create core regions (near galactic center)
+    for name, coords in zip(CORE_REGION_NAMES, core_coordinates):
         region = Region(
             name=name,
             universe_id=universe.id,
@@ -453,19 +521,36 @@ def seed_universe(db):
             z=coords[2],
         )
         seeded_regions.append(region)
+        core_region_objects.append(region)
+        db.add(region)
+    
+    # Create outlaw regions (on outer fringe)
+    for name, coords in zip(OUTLAW_REGION_NAMES, outlaw_coordinates):
+        region = Region(
+            name=name,
+            universe_id=universe.id,
+            x=coords[0],
+            y=coords[1],
+            z=coords[2],
+        )
+        seeded_regions.append(region)
+        outlaw_region_objects.append(region)
         db.add(region)
     db.flush()
 
-    # Step 3: Seed Star Systems
+    # Step 3: Seed Star Systems (only first 300 core systems get fancy names)
     seeded_systems = []
+    named_core_systems_count = 0
+    
     for region, system_count in zip(seeded_regions, systems_per_region):
         is_core = region.name in CORE_REGION_NAMES
         for _ in range(system_count):
-            if is_core:
-                # Use meaningful core system names
-                system_name = CORE_STAR_SYSTEM_NAMES.pop()
+            # First 300 core systems get fancy names, rest get UUID names
+            if is_core and named_core_systems_count < MAX_NAMED_CORE_SYSTEMS and CORE_STAR_SYSTEM_NAMES:
+                system_name = CORE_STAR_SYSTEM_NAMES.pop(0)
+                named_core_systems_count += 1
             else:
-                # Use UUID-like name for outlaw systems
+                # Use UUID-like name for overflow core and all outlaw systems
                 system_name = get_outlaw_system_name()
 
             system = StarSystem(

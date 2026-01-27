@@ -12,7 +12,9 @@ from app.routers.market_trades import router as market_trades_router
 from app.routers.locations import router as locations_router
 from app.routers import map as map_router
 from app.routers.simulation import router as simulation_router
+from app.routers.tilemap import router as tilemap_router
 """
+from app.routers.universe_viz import router as universe_viz_router
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -38,8 +40,13 @@ app.include_router(market_trades_router)
 app.include_router(locations_router)
 app.include_router(map_router.router)
 app.include_router(simulation_router)
+app.include_router(tilemap_router)
 """
+app.include_router(universe_viz_router)
 
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to FastAPI"}
 
 @app.get("/health")
 def health():

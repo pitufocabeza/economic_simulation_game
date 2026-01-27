@@ -14,6 +14,6 @@ from .production_recipe import ProductionRecipeCreate, ProductionRecipeRead
 from .production_job import ProductionJobRead
 
 # Import market order schemas
-from .market_order import MarketOrderCreate, MarketOrderRead
+# from .market_order import MarketOrderCreate, MarketOrderRead
 
 from .resource_deposit import ResourceDepositCreate, ResourceDepositRead

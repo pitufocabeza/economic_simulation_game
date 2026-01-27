@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import ForeignKey, String, Float, DateTime
+from sqlalchemy import ForeignKey, String, Float, DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -15,10 +15,17 @@ class Location(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     planet_id: Mapped[int] = mapped_column(ForeignKey("planets.id"), nullable=False)
 
-    # Coordinates (specific to the planet)
+    # 3D coordinates on planet surface
     x: Mapped[float] = mapped_column(Float, nullable=False)
     y: Mapped[float] = mapped_column(Float, nullable=False)
     z: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    
+    # Tilemap dimensions for this location's buildable area
+    grid_width: Mapped[int] = mapped_column(Integer, nullable=False, default=16)
+    grid_height: Mapped[int] = mapped_column(Integer, nullable=False, default=16)
+    
+    # Seed for procedural tilemap generation in Godot
+    tilemap_seed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Biome and claim-related fields
     biome: Mapped[str] = mapped_column(String, nullable=False)
