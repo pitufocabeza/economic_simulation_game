@@ -1,67 +1,92 @@
-# TILESET_GENERATION.md
+# Comprehensive Tileset Generation Guide
 
-## Comprehensive Guide on Generating Tileset Textures Using AI Tools
+This guide provides detailed instructions for generating tilesets for various biomes in the game using various tools and workflows.
 
-In this guide, we will cover various techniques for generating tileset textures for game development, focusing on AI tools and procedural generation methods.
+## Biomes Overview
+We will cover the following biomes:
+1. **Temperate**
+2. **Ice**
+3. **Volcanic**
+4. **Barren**
+5. **Oceanic**
 
-### 1. AI Tools Comparison
-- **ChatGPT/DALL-E**: Good for generating unique and custom visuals based on descriptive prompts.
-- **Scenario.gg**: Designed specifically for game assets with a user-friendly interface for generating terrain and objects.
-- **Midjourney**: Excellent for high-quality artwork with stylized outputs suitable for game assets.
-- **Stable Diffusion**: Versatile AI capable of generating different types of images based on prompts, suitable for various styles.
+### ChatGPT/DALL-E Prompts
+Below are sample prompts to generate art assets for each biome:
 
-### 2. ChatGPT/DALL-E Prompts for Each Biome
-- **Temperate**: "Generate a 32x32 pixels seamless tileset for a lush temperate forest, featuring grass and trees."
-- **Ice**: "Create a seamless tileset of icy terrain, including frozen lakes and snow-covered ground."
-- **Volcanic**: "Generate volcanic terrain tileset with lava flows and rocky surfaces."
-- **Barren**: "Create a barren landscape tileset with cracked ground and sparse vegetation."
-- **Oceanic**: "Generate a seamless tileset for ocean with waves and sandy shores."
+- **Temperate:** "Generate a lush temperate forest scene with vibrant colors and diverse flora."
+- **Ice:** "Create a frozen landscape with icy textures, snow-covered trees, and a frozen lake."
+- **Volcanic:** "Design an active volcanic landscape with lava flows, ash clouds, and rugged terrain."
+- **Barren:** "Render a desolate wasteland with cracked earth and sparse vegetation."
+- **Oceanic:** "Illustrate an underwater scene teeming with marine life and colorful coral reefs."
 
-### 3. Scenario.gg Workflow
-1. Choose the type of asset you need.
-2. Input relevant parameters to generate your desired tiles.
-3. Review and refine the output using available tools for adjustments.
+## Scenario.gg Workflow
+1. Use Scenario.gg to organize assets and streamline the creation process.
+2. Import generated tiles and set them up with scenes corresponding to each biome.
 
-### 4. Procedural Generation Code Examples in Godot
+## Midjourney Parameters
+Utilize the following parameters for Midjourney prompts:
+- Aspect ratio: `--ar 16:9`
+- Style: `--style 4a`
+
+## Stable Diffusion Setup
+1. Install Stable Diffusion and necessary libraries.
+2. Use the following command to generate tiles: ```python
+python generate.py --prompt "[Your Prompt Here]"```
+
+## Procedural Generation Code in Godot
+Here's a sample GDScript for generating noise-based tiles:
 ```gdscript
-# Simple example of procedural tile generation in Godot
-extends TileMap
+extends Node2D
+
+var noise = OpenSimplexNoise.new()
 
 func _ready():
-    for x in range(10):
-        for y in range(10):
-            set_cellv(Vector2(x, y), rand_range(0, 5))  # Randomly place tiles
-```
+    generate_tiles()
 
-### 5. Post-Processing Techniques
-- Adding shadows and lighting effects to enhance visual depth.
-- Using shaders for blending and detailing.
-- Texture atlasing to optimize performance.
+func generate_tiles():
+    for x in range(0, 100):
+        for y in range(0, 100):
+            var value = noise.get_noise_2d(x, y)
+            var tile = Tile.new()
+            tile.position = Vector2(x * 32, y * 32)
+            add_child(tile)
+            tile.texture = get_tile_texture(value)
 
-### 6. Free Tileset Sources
-- [Kenney.nl](https://kenney.nl): Offers a variety of free game assets including tilesets.
-- [OpenGameArt](https://opengameart.org): A platform with community-contributed art assets.
+func get_tile_texture(value: float) -> Texture:
+    if value < -0.5:
+        return preload("res://textures/barren.png")
+    elif value < 0:
+        return preload("res://textures/ice.png")
+    elif value < 0.5:
+        return preload("res://textures/temperate.png")
+    else:
+        return preload("res://textures/volcanic.png")
+```  
 
-### 7. Import Guide for Godot
-- Ensure your tileset is in the proper format (PNG recommended).
-- Import your tileset image into Godot by dragging it into the file system.
-- Create a new TileSet resource and assign your image to it.
+## Post-Processing Enhancement Scripts
+1. Use GIMP or Photoshop for additional enhancements.
+2. Apply filters for texture blending and color correction.
 
-### 8. Troubleshooting
-- Check for seamless edges and alignment issues when generating tiles.
-- Ensure correct dimensions (32x32 pixels) for consistent tiles.
+## Free Resources
+- **Kenney.nl:** Free game assets to use in your projects.
+- **OpenGameArt:** A repository with a variety of different art resources.
 
-### 9. Best Practices
-- Always test tiles in your game environment to ensure functionality.
-- Continuously refine AI prompts for better results based on feedback.
+## Godot Import Workflow
+1. Import the generated tiles into Godot.
+2. Set up your tilemap and configure the tile settings according to the needed biome.
 
-### 10. Specific Prompt Examples
-- **Grass**: "Generate 32x32 pixel grass tiles with seamless edges."
-- **Forest**: "Create a forest tileset with seamless transitions."
-- **Water**: "Generate seamless water texture tiles with 32x32 pixels."
-- **Rocky**: "Create a rocky terrain tileset for pixel art games."
-- **Sand**: "Generate seamless sand texture tiles."
-- **Ice**: "Create icy tiles with seamless edges."
-- **Volcanic Terrain**: "Generate seamless volcanic tileset with lava and rocks."
+## Troubleshooting Section
+- **Issue:** Tiles not displaying correctly. **Solution:** Check texture paths and ensure they are correctly loaded.
+- **Issue:** Performance issues. **Solution:** Reduce tile size or simplify textures.
 
-This guide aims to be a comprehensive resource for generating varied tilesets that fit your game’s aesthetic and functional needs.
+## Comparison Tables
+| Biome       | Key Characteristics                        | Recommended Tools      |
+|------------|-------------------------------------------|-----------------------|
+| Temperate  | Lush vegetation, moderate climate         | DALL-E, Stable Diffusion  |
+| Ice        | Extreme cold, snow and ice features       | Midjourney            |
+| Volcanic   | Lava flows, rugged landscape                 | OpenSimplexNoise      |
+| Barren     | Cracked earth, sparse vegetation          | GIMP, Photoshop       |
+| Oceanic    | Marine life, underwater features          | Kenney.nl, OpenGameArt|
+
+## Complete GDScript Examples
+Refer to the procedural generation code above for programmatic ways to create and refine tilesets in Godot.
