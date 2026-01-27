@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.deps import get_db
 from app.models.location import Location
 from app.models.company import Company
+from app.models.resource_deposit import ResourceDeposit
 from app.schemas.location import LocationRead
 
 router = APIRouter(prefix="/locations", tags=["locations"])
@@ -40,6 +41,43 @@ def list_locations(db: Session = Depends(get_db)):
         })
 
     return result
+
+@router.get("/{location_id}", response_model=LocationRead)
+def get_location(location_id: int, db: Session = Depends(get_db)):
+    """Get a single location by ID with its resources"""
+    location = db.query(Location).filter(Location.id == location_id).first()
+    
+    if not location:
+        raise HTTPException(404, "Location not found")
+    
+    deposits = (
+        db.query(ResourceDeposit)
+        .filter(ResourceDeposit.location_id == location.id)
+        .all()
+    )
+    
+    return {
+        "id": location.id,
+        "name": location.name,
+        "planet_id": location.planet_id,
+        "x": location.x,
+        "y": location.y,
+        "z": location.z,
+        "biome": location.biome,
+        "grid_width": location.grid_width,
+        "grid_height": location.grid_height,
+        "tilemap_seed": location.tilemap_seed,
+        "claimed": location.claimed_by_company_id is not None,
+        "claimed_by_company_id": location.claimed_by_company_id,
+        "resources": [
+            {
+                "resource_type": d.resource_type,
+                "quantity": d.quantity,
+                "rarity": d.rarity,
+            }
+            for d in deposits
+        ],
+    }
 
 @router.post("/{location_id}/claim")
 def claim_location(
