@@ -25,9 +25,9 @@ var resource_nodes: Array = []
 
 # Isometric camera settings
 const ISOMETRIC_ANGLE: float = 30.0  # Standard isometric angle
-const CAMERA_BASE_ZOOM: Vector2 = Vector2(1.5, 1.5)
-const CAMERA_MIN_ZOOM: float = 0.5
-const CAMERA_MAX_ZOOM: float = 3.0
+const CAMERA_BASE_ZOOM: Vector2 = Vector2(0.5, 0.5)  # Start zoomed out to see the map
+const CAMERA_MIN_ZOOM: float = 0.2
+const CAMERA_MAX_ZOOM: float = 2.0
 const CAMERA_ZOOM_SPEED: float = 0.1
 const CAMERA_PAN_SPEED: float = 500.0
 var camera_target_position: Vector2 = Vector2.ZERO
@@ -50,45 +50,54 @@ const MOISTURE_NORMAL_THRESHOLD: float = 0.65
 var wang_tileset_ready: bool = false
 
 func _ready():
-	print("IsometricLocationGenerator ready")
+	print("IsometricLocationGenerator _ready() START")
+	print("1. Setting up noise generators...")
 	setup_noise_generators()
+	print("2. Setting up isometric camera...")
 	setup_isometric_camera()
 	
 	# For now, use a placeholder grid
 	# TODO: Load actual wang tileset when ready
+	print("3. Generating test grid...")
 	generate_test_grid()
+	print("IsometricLocationGenerator _ready() COMPLETE")
 
 func setup_noise_generators():
-	"""Initialize noise generators for terrain"""
+	# Initialize noise generators for terrain
 	noise = FastNoiseLite.new()
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
 	noise.frequency = 0.05
-	nvar center_pos = Vector2(
-			grid_width * 32,  # Center on grid
-			grid_height * 32
-		)
-		camera.position = center_pos
-		camera_target_position = center_posisture_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	noise.fractal_octaves = 4
+	noise.seed = 42
+	
+	moisture_noise = FastNoiseLite.new()
+	moisture_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
 	moisture_noise.frequency = 0.08
 	moisture_noise.fractal_octaves = 3
 	moisture_noise.seed = 12345  # Different seed for variety
 
 func setup_isometric_camera():
-	"""Configure camera for isometric view"""
+	# Configure camera for isometric view
 	if camera:
 		camera.zoom = CAMERA_BASE_ZOOM
-		# Rotate camera to isometric angle
-		camera.rotation_degrees = ISOMETRIC_ANGLE
-		camera.position = Vector2(
+		# For isometric tiles, camera stays at 0 rotation
+		# The isometric perspective is in the tile artwork itself
+		camera.rotation_degrees = 0
+		var center_pos = Vector2(
 			grid_width * 32,  # Center on grid
 			grid_height * 32
 		)
-		print("Isometric camera configured: angle=", ISOMETRIC_ANGLE, "°")
+		camera.position = center_pos
+		camera_target_position = center_pos
+		print("Isometric camera configured at position: ", center_pos)
 
 func _process(delta: float):
 	handle_camera_input(delta)
-	update_minimap()
- with smooth easing"""
+	# Temporarily disable minimap to test
+	# update_minimap()
+
+func handle_camera_input(delta: float):
+	# Handle camera movement and zoom for isometric view with smooth easing
 	if not camera:
 		return
 	
@@ -119,8 +128,6 @@ func _process(delta: float):
 	
 	# Smooth camera movement
 	camera.position = camera.position.lerp(camera_target_position, CAMERA_SMOOTHING)
-		var rotated_movement = move_vector.rotated(camera.rotation)
-		camera.position += rotated_movement.normalized() * CAMERA_PAN_SPEED * delta / camera.zoom.x
 	
 	# Zoom
 	if Input.is_action_just_pressed("ui_page_up") or Input.is_key_pressed(KEY_E):
@@ -323,20 +330,40 @@ func generate_terrain_preview():
 	print("Terrain preview generated")
 
 func generate_test_grid():
-	"""Generate a simple test grid for development"""
+	# Generate a simple test grid for development
 	if not terrain_layer:
+		print("ERROR: terrain_layer not found!")
 		return
 	
+	if not terrain_layer.tile_set:
+		print("ERROR: No TileSet assigned to terrain_layer!")
+		return
+	
+	print("Generating test grid...")
 	terrain_layer.clear()
+	
+	# Get info about the tileset
+	var tileset = terrain_layer.tile_set
+	print("TileSet sources count: ", tileset.get_source_count())
+	
+	if tileset.get_source_count() > 0:
+		var source_id = tileset.get_source_id(0)
+		print("Using source ID: ", source_id)
+		var source = tileset.get_source(source_id)
+		if source:
+			print("Source type: ", source.get_class())
+			if source is TileSetAtlasSource:
+				print("Atlas tiles count: ", source.get_tiles_count())
 	
 	# Create a checkerboard pattern as placeholder
 	for y in range(grid_height):
 		for x in range(grid_width):
-			# Use alternating pattern
+			# Use alternating pattern - try using source ID 0
 			var atlas_coords = Vector2i((x + y) % 2, 0)
 			terrain_layer.set_cell(Vector2i(x, y), 0, atlas_coords)
 	
 	print("Test grid generated: ", grid_width, "x", grid_height)
+	print("TileMapLayer tile_set: ", terrain_layer.tile_set)
 
 func update_info_label():
 	"""Update the info label with location data"""
