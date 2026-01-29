@@ -4,6 +4,14 @@ uniform int planet_seed = 12345;
 uniform int biome_type = 0;  // 0=Temperate, 1=Ice, 2=Volcanic, 3=Barren, 4=Oceanic
 uniform float noise_scale = 10.0;
 uniform float height_scale = 90.0;  // Height of terrain features in world units
+const float PI = 3.141592653589793;
+
+// Texture samplers for terrain painting
+uniform sampler2D tex_plains : filter_linear_mipmap, repeat_enable;
+uniform sampler2D tex_shallow_water : filter_linear_mipmap, repeat_enable;
+uniform sampler2D tex_deep_water : filter_linear_mipmap, repeat_enable;
+uniform sampler2D tex_water : filter_linear_mipmap, repeat_enable;
+uniform sampler2D tex_barren_plains : filter_linear_mipmap, repeat_enable;
 
 // Pass object-space position from vertex to fragment
 varying vec3 object_pos;
@@ -120,26 +128,40 @@ vec3 get_biome_color(float elevation, int biome) {
 			color = vec3(0.6, 0.18, 0.04);
 		}
 	} else if (biome == 3) {  // Barren - more Mars-like
-		if (elevation > 0.5) {
-			color = vec3(0.25, 0.22, 0.18);  // Rocky mountains - darker
-		} else if (elevation > 0.3) {
-			color = vec3(0.32, 0.28, 0.22);  // Rocky plains
+		// Mars-like palette: reds, ochres and dusty dunes
+		if (elevation > 0.55) {
+			color = vec3(0.18, 0.12, 0.08);  // Dark rocky ridges
+		} else if (elevation > 0.38) {
+			// Reddish rocky plains
+			color = vec3(0.45, 0.28, 0.20);
+		} else if (elevation > 0.30) {
+			// Transition zone - dusty orange
+			color = vec3(0.55, 0.34, 0.22);
 		} else {
-			color = vec3(0.38, 0.32, 0.24);  // Sand/dust - desaturated
+			// Sand/dust basins - lighter, slightly desaturated red/orange
+			color = vec3(0.68, 0.44, 0.30);
 		}
 	} else if (biome == 4) {  // Oceanic - mostly water
+		// Oceanic planets: beaches, shallow turquoise, deep blue
 		if (elevation > 0.56) {
-			color = vec3(0.30, 0.28, 0.20);  // Island peaks - darker
-		} else if (elevation > 0.54) {
-			float t = (elevation - 0.54) / 0.02;
-			color = mix(vec3(0.10, 0.25, 0.35), vec3(0.30, 0.28, 0.20), t);
-		} else if (elevation > 0.45) {
-			color = vec3(0.10, 0.25, 0.35);  // Shallow water - darker
-		} else if (elevation > 0.38) {
-			float t = (elevation - 0.38) / 0.07;
-			color = mix(vec3(0.01, 0.04, 0.15), vec3(0.10, 0.25, 0.35), t);
+			color = vec3(0.30, 0.28, 0.20);  // Island peaks - rocky
+		} else if (elevation > 0.50) {
+			// Coastal/beach band - sand mixing
+			float t = (elevation - 0.50) / 0.06;
+			vec3 sand = vec3(0.92, 0.82, 0.60);
+			vec3 island = vec3(0.28, 0.26, 0.18);
+			color = mix(vec3(0.10, 0.28, 0.40), sand, t);
+		} else if (elevation > 0.44) {
+			// Shallow water - turquoise
+			float t = (elevation - 0.44) / 0.06;
+			color = mix(vec3(0.05, 0.18, 0.28), vec3(0.12, 0.46, 0.60), t);
+		} else if (elevation > 0.36) {
+			// Mid-depth water - deeper blue
+			float t = (elevation - 0.36) / 0.08;
+			color = mix(vec3(0.01, 0.06, 0.18), vec3(0.05, 0.18, 0.28), t);
 		} else {
-			color = vec3(0.01, 0.04, 0.15);  // Deep ocean - very dark
+			// Deep ocean - rich deep blue
+			color = vec3(0.005, 0.02, 0.08);
 		}
 	} else {
 		color = vec3(0.5, 0.5, 0.5);  // Default gray
@@ -174,13 +196,59 @@ void fragment() {
 	
 	// Get color based on biome and elevation
 	vec3 base_color = get_biome_color(elevation, biome_type);
-	
-	// Generate enhanced normal map for surface detail - calculate height samples first
-	float bump_strength = 1.2;
+
+	// Compute spherical UVs from object-space normal for texture sampling
+	// Scale UVs to tile textures multiple times for better detail
+	vec2 sph_uv = vec2(atan(obj_normal.z, obj_normal.x) / (2.0 * PI) + 0.5,
+		asin(obj_normal.y) / PI + 0.5);
+	sph_uv *= 8.0; // Tile texture 8 times across planet surface
+
+	// Use textures for Oceanic planets (deep vs shallow) if provided
+	if (biome_type == 4) {
+		if (elevation > 0.50) {
+			// island/rock - keep base_color
+		} else if (elevation > 0.44) {
+			// Shallow water: sample shallow texture
+			vec3 tcol = texture(tex_shallow_water, sph_uv).rgb;
+			base_color = tcol; // Use texture directly for water
+		} else {
+			// Deep water
+			vec3 tcol = texture(tex_deep_water, sph_uv).rgb;
+			base_color = tcol; // Use texture directly for water
+		}
+	}
+
+	// Height samples for slope calculation (used for plains detection)
 	vec3 offset = vec3(0.005, 0.0, 0.0);
 	float h_center = fbm_seed(obj_normal * noise_scale, planet_seed);
 	float h_right = fbm_seed((obj_normal + offset.xyy) * noise_scale, planet_seed);
 	float h_up = fbm_seed((obj_normal + offset.yxy) * noise_scale, planet_seed);
+	float slope = abs(h_center - h_right) + abs(h_center - h_up);
+
+	// For Temperate planets, replace low-elevation flat areas with plains texture and water with water texture
+	if (biome_type == 0) {
+		// define plains as relatively flat low-to-mid elevation
+		if (elevation > 0.36 && elevation < 0.50 && slope < 0.12) {
+			vec3 pcol = texture(tex_plains, sph_uv).rgb;
+			base_color = pcol; // Use plains texture directly
+		}
+		// water override
+		if (elevation <= 0.35) {
+			vec3 wcol = texture(tex_water, sph_uv).rgb;
+			base_color = wcol; // Use water texture directly
+		}
+	}
+
+	// Barren planets: use barren plains texture for mid/low elevations
+	if (biome_type == 3) {
+		if (elevation > 0.30 && elevation < 0.60) {
+			vec3 bcol = texture(tex_barren_plains, sph_uv).rgb;
+			base_color = bcol; // Use texture directly for barren terrain
+		}
+	}
+	
+	// Generate enhanced normal map for surface detail - calculate height samples first
+	float bump_strength = 1.2;
 	
 	// Add multiple layers of fine detail at different scales for HD appearance
 	float detail1 = noise3d_seed(obj_normal * noise_scale * 8.0, planet_seed + 100);
@@ -218,6 +286,15 @@ void fragment() {
 	
 	// Add edge darkening (limb darkening)
 	base_color *= mix(0.1, 1.0, edge_factor);
+
+	// Coral reef patches in shallow ocean: small-scale noise-driven color accents
+	if (biome_type == 4 && elevation > 0.44 && elevation < 0.52) {
+		float reef_noise = noise3d_seed(obj_normal * noise_scale * 32.0, planet_seed + 777);
+		if (reef_noise > 0.6) {
+			vec3 coral_color = vec3(0.95, 0.60, 0.48);
+			base_color = mix(base_color, coral_color, (reef_noise - 0.6) * 2.5 * 0.35);
+		}
+	}
 	
 	// Add micro-detail to normals
 	float micro_right = noise3d_seed((obj_normal + offset.xyy) * noise_scale * 32.0, planet_seed + 500);
@@ -254,11 +331,13 @@ void fragment() {
 		// Ice subsurface scattering
 		base_color = mix(base_color, base_color * vec3(0.9, 0.95, 1.0), 0.1);
 	} else if (biome_type == 2 && elevation < 0.38) {  // Volcanic lava
-		roughness = 0.35;
-		specular = 0.2;
-		// Enhanced lava glow with pulsing effect
-		float glow_variation = noise3d_seed(obj_normal * 4.0, planet_seed + 999) * 0.5 + 0.5;
-		EMISSION = base_color * (0.6 + glow_variation * 0.4);
+		roughness = 0.38;
+		specular = 0.18;
+		// Controlled lava glow with pulsing effect (toned down to avoid overpowering)
+		float glow_variation = noise3d_seed(obj_normal * 3.0, planet_seed + 999) * 0.5 + 0.5;
+		vec3 lava_tint = mix(vec3(1.0, 0.45, 0.12), vec3(1.0, 0.65, 0.2), glow_variation);
+		// Lower base emission multiplier and add slight warm tint
+		EMISSION = lava_tint * (0.25 + glow_variation * 0.25);
 	} else if (biome_type == 4 && elevation < 0.54) {  // Oceanic water
 		roughness = 0.35;
 		specular = mix(0.08, 0.25, fresnel);

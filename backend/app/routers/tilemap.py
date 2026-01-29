@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.deps import get_db
 from app.models.location import Location
 from app.models.resource_deposit import ResourceDeposit
+from app.models.planet import Planet
 
 router = APIRouter(prefix="/tilemap", tags=["Tilemap"])
 
@@ -34,7 +35,7 @@ def get_location_tilemap_info(location_id: int, db: Session = Depends(get_db)):
     
     resource_data = [
         {
-            "type": res.resource_type,
+            "good_name": res.resource_type,  # Changed from "type" to "good_name" for frontend compatibility
             "quantity": res.quantity,
             "rarity": res.rarity
         }
@@ -45,6 +46,7 @@ def get_location_tilemap_info(location_id: int, db: Session = Depends(get_db)):
         "location_id": location.id,
         "location_name": location.name,
         "planet_id": location.planet_id,
+        "planet_name": location.planet.name if location.planet else "Unknown Planet",
         "biome": location.biome,
         "grid_width": location.grid_width,
         "grid_height": location.grid_height,
@@ -59,3 +61,33 @@ def get_location_tilemap_info(location_id: int, db: Session = Depends(get_db)):
         "claimed": location.claimed_by_company_id is not None,
         "claimed_by": location.claimed_by_company_id
     }
+
+
+@router.get("/planets")
+def get_all_planets_with_locations(db: Session = Depends(get_db)):
+    """
+    Get all planets that have at least one location, with their first location ID.
+    Used for planet navigation in Godot client.
+    """
+    # Get all planets with at least one location
+    planets_query = (
+        select(Planet, func.min(Location.id).label("first_location_id"))
+        .join(Location, Location.planet_id == Planet.id)
+        .group_by(Planet.id)
+        .order_by(Planet.id)
+    )
+    
+    results = db.execute(planets_query).all()
+    
+    planets_data = []
+    for planet, first_location_id in results:
+        planets_data.append({
+            "planet_id": planet.id,
+            "planet_name": planet.name,
+            "biome": planet.biome,
+            "first_location_id": first_location_id,
+            "system_id": planet.star_system_id
+        })
+    
+    return {"planets": planets_data}
+

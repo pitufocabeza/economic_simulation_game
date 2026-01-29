@@ -1,0 +1,23 @@
+[gd_scene load_steps=2 format=3 uid="uid://bkm3r8qvhjx72"]
+
+[ext_resource type="PackedScene" uid="uid://3taohf1ccsji" path="res://scenes/location.tscn" id="1_location"]
+[ext_resource type="Script" path="res://scripts/location_test.gd" id="2_test"]
+
+[node name="LocationTest" type="Node2D"]
+script = ExtResource("2_test")
+
+[node name="Location" parent="." instance=ExtResource("1_location")]
+
+[node name="TestInfoLabel" type="Label" parent="."]
+offset_left = 600.0
+offset_top = 10.0
+offset_right = 1200.0
+offset_bottom = 150.0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 18
+text = "Location Test Scene
+
+Press 1-9 to load different locations
+Each location will have a unique
+procedurally generated tilemap"

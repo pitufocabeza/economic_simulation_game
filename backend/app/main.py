@@ -13,6 +13,7 @@ from app.routers import map as map_router
 from app.routers.simulation import router as simulation_router
 from app.routers.tilemap import router as tilemap_router
 from app.routers.universe_viz import router as universe_viz_router
+from app.routers.buildings import router as buildings_router
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -39,6 +40,7 @@ app.include_router(map_router.router)
 app.include_router(simulation_router)
 app.include_router(tilemap_router)
 app.include_router(universe_viz_router)
+app.include_router(buildings_router)
 
 @app.get("/")
 def read_root():

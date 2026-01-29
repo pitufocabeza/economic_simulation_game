@@ -32,6 +32,11 @@ class BuildingBlueprint(Base):
     # Construction rules
     construction_cost = Column(JSON, nullable=False)  # Resources required to construct the building
 
+    # Grid dimensions and visuals
+    grid_width = Column(Integer, nullable=False, default=1)  # Building width in grid tiles
+    grid_height = Column(Integer, nullable=False, default=1)  # Building height in grid tiles
+    sprite_path = Column(String, nullable=True)  # Path to sprite for Godot client
+
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now())  # Creation time for the blueprint
     updated_at = Column(TIMESTAMP, onupdate=func.now())  # Last modification time

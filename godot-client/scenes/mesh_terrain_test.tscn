@@ -1,0 +1,26 @@
+[gd_scene load_steps=2 format=3 uid="uid://fkm3r8qvhjx76"]
+
+[ext_resource type="PackedScene" path="res://scenes/mesh_location.tscn" id="1_location"]
+[ext_resource type="Script" path="res://scripts/mesh_terrain_test.gd" id="2_test"]
+
+[node name="MeshTerrainTest" type="Node2D"]
+script = ExtResource("2_test")
+
+[node name="MeshLocation" parent="." instance=ExtResource("1_location")]
+
+[node name="TestInfoLabel" type="Label" parent="."]
+offset_left = 1400.0
+offset_top = 10.0
+offset_right = 1900.0
+offset_bottom = 200.0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 18
+text = "Mesh-Based 2.5D Terrain
+
+✓ Actual height levels
+✓ Cliff rendering
+✓ Y-sorting for depth
+✓ Shadow effects
+
+Press 1-9 to test locations"

@@ -13,6 +13,11 @@ class Building(Base):
     owner_company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)  # Who owns this building
     location_id = Column(Integer, ForeignKey("locations.id"), nullable=False)  # Which plot this building resides in
 
+    # Grid placement
+    grid_x = Column(Integer, nullable=False, default=0)  # X position on location grid
+    grid_y = Column(Integer, nullable=False, default=0)  # Y position on location grid
+    rotation = Column(Integer, nullable=False, default=0)  # Rotation: 0, 90, 180, 270
+
     # Status tracking
     status = Column(String(50), nullable=False, default="constructing")  # E.g., "active", "constructing", "damaged"
 

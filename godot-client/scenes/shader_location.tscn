@@ -1,11 +1,12 @@
-[gd_scene load_steps=2 format=3 uid="uid://3taohf1ccsji"]
+[gd_scene format=3 uid="uid://y2hgrucsa7i7"]
 
-[ext_resource type="Script" path="res://scripts/location_tilemap_generator.gd" id="1_jy7vh"]
+[ext_resource type="Script" path="res://scripts/shader_terrain_generator.gd" id="1_shader"]
 
-[node name="Location" type="Node2D"]
-script = ExtResource("1_jy7vh")
+[node name="ShaderLocation" type="Node2D"]
+script = ExtResource("1_shader")
 
-[node name="TerrainLayer" type="TileMapLayer" parent="."]
+[node name="TerrainMesh" type="MeshInstance2D" parent="."]
+z_index = -1
 
 [node name="ResourceLayer" type="TileMapLayer" parent="."]
 
@@ -17,10 +18,10 @@ script = ExtResource("1_jy7vh")
 offset_left = 10.0
 offset_top = 10.0
 offset_right = 500.0
-offset_bottom = 120.0
+offset_bottom = 160.0
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 2
-text = "Location Tilemap Generator
+text = "Shader Terrain Generator
 WASD/Arrows - Move Camera
 Q/E - Zoom In/Out
 Loading..."
@@ -32,6 +33,6 @@ offset_right = 500.0
 offset_bottom = 1050.0
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 2
-text = "Camera Controls:
-WASD or Arrow Keys - Pan camera
-Q - Zoom out  |  E - Zoom in"
+text = "Shader-Based Terrain Blending
+Smooth transitions between elevation levels
+Press 1-9 to load different locations"

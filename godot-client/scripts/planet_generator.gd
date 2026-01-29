@@ -7,6 +7,12 @@ var planet_shader = preload("res://shaders/planet_shader.gdshader")
 # API client reference
 var api_client: Node
 
+# Create a 1x1 ImageTexture of a solid color (fallback for missing tiles)
+func create_color_tex(c: Color) -> Texture:
+	var img = Image.create(1, 1, false, Image.FORMAT_RGBA8)
+	img.fill(c)
+	return ImageTexture.create_from_image(img)
+
 func _ready():
 	# Get reference to API client if it exists
 	if has_node("/root/APIClient"):
@@ -65,7 +71,56 @@ func create_planet_material(planet_data: Dictionary):
 			material.set_shader_parameter("planet_seed", seed_val)
 			material.set_shader_parameter("biome_type", biome_id)
 			material.set_shader_parameter("noise_scale", 5.0)
-			
+
+			# Attempt to load tileset textures and bind to shader; create 1x1 fallbacks when missing
+			var plains_path = "res://assets/tilesets/temperate/plains.png"
+			var water_path = "res://assets/tilesets/temperate/water.png"
+			var shallow_path = "res://assets/tilesets/oceanic/shallow_water.png"
+			var deep_path = "res://assets/tilesets/oceanic/deep_water.png"
+			var barren_path = "res://assets/tilesets/barren/rocky_plains.png"
+
+			# (Using top-level create_color_tex fallback helper)
+
+			# Plains texture or fallback green
+			var plains_tex: Texture = null
+			if ResourceLoader.exists(plains_path):
+				plains_tex = load(plains_path)
+			else:
+				plains_tex = create_color_tex(Color(0.25, 0.38, 0.18))
+			material.set_shader_parameter("tex_plains", plains_tex)
+
+			# Temperate water or fallback blue
+			var water_tex: Texture = null
+			if ResourceLoader.exists(water_path):
+				water_tex = load(water_path)
+			else:
+				water_tex = create_color_tex(Color(0.04, 0.10, 0.18))
+			material.set_shader_parameter("tex_water", water_tex)
+
+			# Shallow ocean or fallback turquoise
+			var shallow_tex: Texture = null
+			if ResourceLoader.exists(shallow_path):
+				shallow_tex = load(shallow_path)
+			else:
+				shallow_tex = create_color_tex(Color(0.12, 0.46, 0.60))
+			material.set_shader_parameter("tex_shallow_water", shallow_tex)
+
+			# Deep ocean or fallback dark blue
+			var deep_tex: Texture = null
+			if ResourceLoader.exists(deep_path):
+				deep_tex = load(deep_path)
+			else:
+				deep_tex = create_color_tex(Color(0.01, 0.04, 0.10))
+			material.set_shader_parameter("tex_deep_water", deep_tex)
+
+			# Barren plains texture or fallback sandy-brown
+			var barren_tex: Texture = null
+			if ResourceLoader.exists(barren_path):
+				barren_tex = load(barren_path)
+			else:
+				barren_tex = create_color_tex(Color(0.60, 0.44, 0.28))
+			material.set_shader_parameter("tex_barren_plains", barren_tex)
+
 			return material
 	
 	# Fallback to standard material with biome colors
