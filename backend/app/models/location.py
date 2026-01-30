@@ -21,11 +21,14 @@ class Location(Base):
     z: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     
     # Tilemap dimensions for this location's buildable area
-    grid_width: Mapped[int] = mapped_column(Integer, nullable=False, default=16)
-    grid_height: Mapped[int] = mapped_column(Integer, nullable=False, default=16)
+    grid_width: Mapped[int] = mapped_column(Integer, nullable=False, default=256)
+    grid_height: Mapped[int] = mapped_column(Integer, nullable=False, default=256)
     
     # Seed for procedural tilemap generation in Godot
     tilemap_seed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    
+    # Wang tileset support for seamless tiling
+    wang_tile_id: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0-15 for Wang tilesets
 
     # Biome and claim-related fields
     biome: Mapped[str] = mapped_column(String, nullable=False)
@@ -35,6 +38,18 @@ class Location(Base):
         unique=True,
     )
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    
+    # Edge neighbor tracking for seamless location transitions
+    edge_north_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"), nullable=True)
+    edge_south_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"), nullable=True)
+    edge_east_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"), nullable=True)
+    edge_west_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"), nullable=True)
+    
+    # Adjacent biome information for seamless transitions
+    adjacent_biome_north: Mapped[str] = mapped_column(String, nullable=False, default="none")
+    adjacent_biome_south: Mapped[str] = mapped_column(String, nullable=False, default="none")
+    adjacent_biome_east: Mapped[str] = mapped_column(String, nullable=False, default="none")
+    adjacent_biome_west: Mapped[str] = mapped_column(String, nullable=False, default="none")
 
     # Relationships
     company = relationship("Company", foreign_keys=[claimed_by_company_id], uselist=False)

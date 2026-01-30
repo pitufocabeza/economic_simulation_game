@@ -11,26 +11,45 @@ import random
 import math
 from collections import Counter
 
-# Universe constants
+# Universe constants - MVP Configuration
+# ========================================
+
+# Core Regions (5 - Safe, moderate resources)
 CORE_REGION_NAMES = [
-    "Forgeheart Dominion", "Crystal Crown Sector", "Ironclad Nexus", "Radiant Spire Alliance",
-    "Obsidian Vaults", "Stellarforge Concord", "Embercore Syndicate", "Voidsteel Enclave",
-    "Prismgate Territories", "Titanforge Bastion", "Luminary Core"
+    "Forgeheart Dominion",      # Forge Syndicate headquarters
+    "Crystal Crown Sector",      # Luminous Accord research hub
+    "Ironclad Nexus",            # Titanborn Consortium mining base
+    "Radiant Spire Alliance",    # Hegemony of Unity control center
+    "Cooperative Haven",          # Stellar Collective democratic hub
 ]
 
+# Outlaw Regions (7 - Frontier, 20% more resources)
 OUTLAW_REGION_NAMES = [
-    "Shadowrift Fringe", "Blood Nebula Marches", "Ghostfire Expanse", "Razorwind Badlands",
-    "Eclipse Drift", "Scourge Veil", "Thornspire Wastes", "Ironscar Reaches",
-    "Frostbite Void", "Demon's Maw", "Blackshard Frontier", "Wraith Hollows",
-    "Crimson Abyss", "Deadlight Shallows", "Skullforge Rift", "Nightmare Drift",
-    "Bone Nebula", "Ruinspike Marches", "Ashen Vortex", "Predator's Edge", "Exile's Gambit"
+    "Shadowrift Fringe",         # Voidrunners Collective territory
+    "Blood Nebula Marches",
+    "Ghostfire Expanse",
+    "Razorwind Badlands",
+    "Eclipse Drift",             # Ravagers of the Rift territory
+    "Scourge Veil",
+    "Thornspire Wastes",
 ]
 
-CORE_REGION_SYSTEMS = (20, 27)
-OUTLAW_REGION_SYSTEMS = (12, 15)
-PLANETS_PER_SYSTEM = (4, 9)
-TOTAL_PLANETS = 10000
-MAX_NAMED_CORE_SYSTEMS = 300  # Limit fancy star system names
+# Faction-specific star names (one per faction)
+FACTION_STARS = {
+    "Forge Syndicate": "Forge Prime",           # In Forgeheart Dominion
+    "Luminous Accord": "Luminous Prime",        # In Crystal Crown Sector
+    "Titanborn Consortium": "Titanborn Prime",  # In Ironclad Nexus
+    "Hegemony of Unity": "Unity Prime",         # In Radiant Spire Alliance
+    "Stellar Collective": "Collective Prime",   # Distributed in core regions
+    "Voidrunners Collective": "Shadowveil",    # In Shadowrift Fringe
+    "Ravagers of the Rift": "Dreadstone",      # In Eclipse Drift
+}
+
+# System generation parameters (MVP - smaller universe)
+CORE_REGION_SYSTEMS = (8, 12)      # 8-12 systems per core region
+OUTLAW_REGION_SYSTEMS = (5, 8)     # 5-8 systems per outlaw region
+PLANETS_PER_SYSTEM = (3, 6)        # 3-6 planets per system
+TOTAL_PLANETS = 350                # Target ~350 planets total (~45-55 per region avg)
 
 UNIVERSE_NAME = "Riftforge Expanse"
 
@@ -136,6 +155,7 @@ def generate_region_coordinates(num_core, num_outlaw):
     Generate region coordinates with core regions near galactic center, outlaw on fringe.
     Core regions: inner 1/3 of galaxy radius
     Outlaw regions: outer 2/3 of galaxy radius (surrounding core)
+    Uses random sampling (memory efficient) instead of generating all positions.
     """
     center = UNIVERSE_SCALE / 2  # 50000
     max_radius = math.sqrt(3) * (UNIVERSE_SCALE / 2)  # Max distance from center to corner
@@ -144,34 +164,29 @@ def generate_region_coordinates(num_core, num_outlaw):
     outlaw_min_distance = core_max_distance  # Start where core ends
     outlaw_max_distance = max_radius  # Full outer region
     
-    step = REGION_SCALE
+    # Use random sampling instead of generating all positions (memory efficient)
+    core_positions = []
+    outlaw_positions = []
+    attempts = 0
+    max_attempts = 10000  # Prevent infinite loops
     
-    # Generate all possible region positions
-    all_positions = [
-        (x, y, z)
-        for x in range(0, UNIVERSE_SCALE, step)
-        for y in range(0, UNIVERSE_SCALE, step)
-        for z in range(0, UNIVERSE_SCALE, step)
-    ]
-    
-    # Separate positions by distance from center
-    core_candidates = []
-    outlaw_candidates = []
-    
-    for pos in all_positions:
-        distance = calculate_distance_from_center(pos[0], pos[1], pos[2])
+    while (len(core_positions) < num_core or len(outlaw_positions) < num_outlaw) and attempts < max_attempts:
+        x = random.uniform(0, UNIVERSE_SCALE)
+        y = random.uniform(0, UNIVERSE_SCALE)
+        z = random.uniform(0, UNIVERSE_SCALE)
+        pos = (x, y, z)
         
-        if distance <= core_max_distance:
-            core_candidates.append(pos)
-        elif distance >= outlaw_min_distance:
-            outlaw_candidates.append(pos)
+        distance = calculate_distance_from_center(x, y, z)
+        
+        if distance <= core_max_distance and len(core_positions) < num_core:
+            core_positions.append(pos)
+        elif distance >= outlaw_min_distance and distance <= outlaw_max_distance and len(outlaw_positions) < num_outlaw:
+            outlaw_positions.append(pos)
+        
+        attempts += 1
     
-    # Randomly select from candidates
-    random.shuffle(core_candidates)
-    random.shuffle(outlaw_candidates)
-    
-    core_positions = core_candidates[:num_core]
-    outlaw_positions = outlaw_candidates[:num_outlaw]
+    if len(core_positions) < num_core or len(outlaw_positions) < num_outlaw:
+        print(f"⚠️  Warning: Could only generate {len(core_positions)}/{num_core} core and {len(outlaw_positions)}/{num_outlaw} outlaw regions")
     
     return core_positions, outlaw_positions
 
@@ -235,16 +250,19 @@ def calculate_total_resource_capacity(biome, radius):
     return int(base_capacity * (radius / 5000))
 
 
-def calculate_num_locations(planet_radius, base_plot_size=1000000, reference_radius=6371, max_locations=50, min_locations=3):
+def calculate_num_locations(planet_radius, base_plot_size=1000000, reference_radius=6371, max_locations=8, min_locations=3):
     """
     Dynamically calculate the number of locations (plots) on a planet based on its radius,
     using density scaling to avoid over-allocation of locations on smaller planets.
+    
+    NEW (Factorio-style design): Capped at 3-8 locations per planet to reduce location-switching
+    and encourage focused gameplay on larger maps (256x512 grids instead of 16x32).
 
     :param planet_radius: Radius of the planet in kilometers.
     :param base_plot_size: Base size of a plot in square kilometers (default: 1,000,000 km²).
     :param reference_radius: A scaling factor based on Earth's radius (default: 6,371 km).
-    :param max_locations: Maximum number of locations allowed on a single planet.
-    :param min_locations: Minimum number of locations required on a single planet.
+    :param max_locations: Maximum number of locations allowed on a single planet (default: 8).
+    :param min_locations: Minimum number of locations required on a single planet (default: 3).
     :return: Dynamically calculated number of locations.
     """
     # Scale effective plot size based on planet radius compared to reference (Earth-like scaling)
@@ -254,21 +272,25 @@ def calculate_num_locations(planet_radius, base_plot_size=1000000, reference_rad
     # Surface area of a sphere: 4 * π * r^2
     surface_area = 4 * math.pi * (planet_radius ** 2)
 
-    # Calculate the number of location
+    # Calculate the number of locations
     num_locations = int(surface_area / effective_plot_size)
 
     # Ensure the number of locations stays within min and max limits
+    # Factorio-style: fewer larger locations for extended gameplay
     return max(min_locations, min(num_locations, max_locations))
 
 
-def calculate_grid_dimensions(planet_radius, min_size=16, max_size=32):
+def calculate_grid_dimensions(planet_radius, min_size=256, max_size=512):
     """
     Calculate tilemap grid dimensions for a location based on planet size.
-    Larger planets have slightly bigger location tilemaps.
+    Larger planets have larger location tilemaps (Factorio-style design).
+    
+    NEW: Changed from 16-32 to 256-512 for larger, more complex locations.
+    With fewer locations (3-8) per planet, each location needs more space for gameplay.
     
     :param planet_radius: Radius of the planet in kilometers.
-    :param min_size: Minimum grid size (default: 16x16).
-    :param max_size: Maximum grid size (default: 32x32).
+    :param min_size: Minimum grid size (default: 256x256).
+    :param max_size: Maximum grid size (default: 512x512).
     :return: Tuple of (grid_width, grid_height)
     """
     # Scale grid size based on planet radius (3000-7000 km range)
@@ -295,29 +317,37 @@ def generate_location_resources(biome, total_resources, num_locations, is_outlaw
     remaining_resources = int(remaining_resources * scarcity_factor)
 
     for i in range(num_locations):
+        # Guard against negative or zero remaining resources
+        if remaining_resources <= 0:
+            break
+        
         # Share resources for this location
-        upper_limit = remaining_resources // num_locations
-        lower_limit = max((5 * total_resources) // 100, min(remaining_resources // (2 * num_locations), upper_limit))
+        upper_limit = max(1, remaining_resources // num_locations)
+        lower_limit = max(1, (5 * total_resources) // 100)
+        lower_limit = min(lower_limit, upper_limit)  # Ensure lower <= upper
         
-        # Ensure lower_limit doesn't exceed upper_limit (can happen with many locations)
-        lower_limit = min(lower_limit, upper_limit)
-        
-        # Ensure we have a valid range
-        if lower_limit > upper_limit or upper_limit == 0:
-            location_share = remaining_resources  # Give all remaining to avoid errors
+        # Allocate resources for this location
+        if i == num_locations - 1:
+            location_share = remaining_resources  # Last location gets all remaining
         else:
             location_share = random.randint(lower_limit, upper_limit)
-
-        if i == num_locations - 1:
-            location_share = remaining_resources  # Allocate any remaining resources to the last location
+        
+        # Guard against over-allocation
+        location_share = min(location_share, remaining_resources)
+        location_share = max(1, location_share)
 
         location_resources = []
+        # Calculate total weight properly (apply rarity boost consistently)
+        total_weight = sum(
+            rule["weight"] * rarity_boost for rule in biome_rules
+        )
+        
         for resource_rule in biome_rules:
-            weight_percentage = (resource_rule["weight"] * rarity_boost) / sum(
-                rule["weight"] * rarity_boost if rule["rarity"] == "rare" else rule["weight"]
-                for rule in biome_rules
-            )
+            # Apply rarity boost fairly to all resources
+            weighted = resource_rule["weight"] * rarity_boost
+            weight_percentage = weighted / total_weight if total_weight > 0 else 0
             quantity = int(location_share * weight_percentage)
+            
             if quantity > 0:
                 location_resources.append({
                     "resource_type": resource_rule["resource_type"],
@@ -329,6 +359,98 @@ def generate_location_resources(biome, total_resources, num_locations, is_outlaw
         locations.append(location_resources)
 
     return locations
+
+
+def calculate_wang_tile_id(location_idx, num_locations, biome):
+    """
+    Calculate a Wang tile ID (0-15) for seamless tiling based on location position and biome.
+    Wang tiles allow seamless transitions between tiles by encoding edge compatibility.
+    
+    :param location_idx: Index of the location on the planet (0 to num_locations-1)
+    :param num_locations: Total number of locations on the planet
+    :param biome: Biome type of the location
+    :return: Wang tile ID (0-15)
+    """
+    # Use location index to seed tile selection deterministically
+    # This ensures consistent tiling when locations are regenerated
+    # Wang tiles use a 4-bit system: one bit per cardinal direction
+    # Bit pattern: North (8) | East (4) | South (2) | West (1)
+    
+    wang_seed = hash(f"{location_idx}_{biome}") % 16
+    return wang_seed
+
+
+def populate_location_edge_neighbors(db, planet):
+    """
+    After all locations are created, link adjacent locations via edge references.
+    This enables seamless transitions at location boundaries.
+    
+    :param db: Database session
+    :param planet: Planet object with all locations already created
+    """
+    locations = db.query(Location).filter_by(planet_id=planet.id).all()
+    
+    if len(locations) <= 1:
+        return  # No neighbors to connect
+    
+    # Create a spatial index by x,y coordinates
+    loc_by_coord = {(loc.x, loc.y): loc for loc in locations}
+    
+    for location in locations:
+        # Find nearest neighbors (using simple 2D distance)
+        neighbors = {}
+        min_dist_n, min_dist_s, min_dist_e, min_dist_w = float('inf'), float('inf'), float('inf'), float('inf')
+        nearest_n, nearest_s, nearest_e, nearest_w = None, None, None, None
+        
+        for other in locations:
+            if other.id == location.id:
+                continue
+            
+            dx = other.x - location.x
+            dy = other.y - location.y
+            dist = math.sqrt(dx**2 + dy**2)
+            
+            # Determine direction (simplified: use angle)
+            if dist == 0:
+                continue
+            angle = math.atan2(dy, dx) * 180 / math.pi
+            
+            # Normalize angle to 0-360
+            if angle < 0:
+                angle += 360
+            
+            # Determine cardinal direction (with tolerance)
+            if 340 <= angle or angle <= 20:  # East
+                if dist < min_dist_e:
+                    min_dist_e = dist
+                    nearest_e = other
+            elif 70 <= angle <= 110:  # North
+                if dist < min_dist_n:
+                    min_dist_n = dist
+                    nearest_n = other
+            elif 160 <= angle <= 200:  # West
+                if dist < min_dist_w:
+                    min_dist_w = dist
+                    nearest_w = other
+            elif 250 <= angle <= 290:  # South
+                if dist < min_dist_s:
+                    min_dist_s = dist
+                    nearest_s = other
+        
+        # Assign neighbors
+        if nearest_n:
+            location.edge_north_id = nearest_n.id
+            location.adjacent_biome_north = nearest_n.biome
+        if nearest_s:
+            location.edge_south_id = nearest_s.id
+            location.adjacent_biome_south = nearest_s.biome
+        if nearest_e:
+            location.edge_east_id = nearest_e.id
+            location.adjacent_biome_east = nearest_e.biome
+        if nearest_w:
+            location.edge_west_id = nearest_w.id
+            location.adjacent_biome_west = nearest_w.biome
+
 
 def seed_locations_and_resources(db, planet, num_locations):
     """
@@ -377,6 +499,9 @@ def seed_locations_and_resources(db, planet, num_locations):
         
         # Generate a unique seed for this location's tilemap generation in Godot
         tilemap_seed = random.randint(0, 2147483647)
+        
+        # Calculate Wang tile ID for seamless tiling (0-15)
+        wang_tile_id = calculate_wang_tile_id(idx, num_locations, planet.biome)
 
         location = Location(
             name=f"{planet.name} Plot {idx + 1}",
@@ -388,6 +513,7 @@ def seed_locations_and_resources(db, planet, num_locations):
             grid_width=grid_width,
             grid_height=grid_height,
             tilemap_seed=tilemap_seed,
+            wang_tile_id=wang_tile_id,
         )
         locations.append(location)
         db.add(location)
@@ -404,6 +530,10 @@ def seed_locations_and_resources(db, planet, num_locations):
                 ))
 
     db.add_all(deposits)
+    
+    # Populate edge neighbor references for seamless location transitions
+    populate_location_edge_neighbors(db, planet)
+    
     return locations
 
 
@@ -412,73 +542,64 @@ import uuid
 
 def seed_universe(db):
     """
-    Seed the universe with procedurally named core and outlaw star systems, and planets.
+    Seed the universe with regions, star systems, and planets.
+    MVP configuration: 11 regions, ~70-100 systems, ~350 planets.
     """
     import random
+    import uuid
 
+    # Expanded star system names for MVP core regions (60+ names for 32-60 systems)
     CORE_STAR_SYSTEM_NAMES = [
-    # Core Stellar Names (1-50)
-    "Aetheris", "Vortexia", "Nebulon", "Quasara", "Pulsara", "Stellaris", "Coronae", "Helixion", "Photonis", "Luminara",
-    "Spectra", "Radiara", "Novaris", "Hyperion", "Zentara", "Astralix", "Celestara", "Orionis", "Sirius Major", "Vega Prime",
-    "Rigelion", "Betelgeuse", "Procyon", "Altair Nexus", "Denebola", "Spica", "Arcturus", "Aldebaran", "Antares", "Capella",
-    "Castor", "Pollux", "Regulus", "Deneb", "Fomalhaut", "Achernar", "Mira", "Alnilam", "Alnitak", "Mintaka", "Bellatrix",
-    "Saiph", "Alphard", "Mirfak", "Menkent", "Atria", "Gacrux", "Acrux", "Mimosa", "Gienah", "Alshain",
-    
-    # Nebula Regions (51-100)
-    "Horsehead", "Eagle Nebula", "Crab Pulsar", "Ring Nebula", "Dumbbell", "Cat's Eye", "Owl Nebula", "Helix Nebula",
-    "Planetary Veil", "Witch's Head", "Lagoon Core", "Trifid Rift", "Orion Veil", "Rosette Cluster", "Cone Nebula",
-    "Elephant Trunk", "Pelican Drift", "North America", "Pacific Nebula", "Atlantic Drift", "Carina Vortex",
-    "Tarantula", "Eta Carina", "Homunculus", "Keyhole", "Bubble Sector", "Wizard Drift", "Iris Nebula", "Cocoon Star",
-    "Flame Belt", "Pillow Nebula", "Monkey Head", "Propeller", "Red Rectangle", "Blue Flash", "Diamond Ring",
-    "Ghost Head", "Frog Nebula", "Tadpole", "Butterfly Wing", "Dragonfish", "Seahorse", "Skull Nebula",
-    "Snow Globe", "Cosmic Rose", "Stingray", "Mystic Mountain", "Pillars Reach", "Dark Horse", "Shadow Veil",
-    
-    # Constellation Zones (101-150)
-    "Draco Prime", "Cygnus Rift", "Lyra Cluster", "Aquila Vortex", "Sagitta Arrow", "Vulpecula", "Delphinus",
-    "Sagittarius A", "Scutum Star", "Serpens Cauda", "Ophiuchus", "Hercules Crown", "Boötes Void",
-    "Corona Borealis", "Ursa Majoris", "Ursa Minor", "Cassiopeia A", "Cepheus Pole", "Camelopardalis",
-    "Auriga Chariot", "Perseus Double", "Taurus Rift", "Gemini Twins", "Cancer Cluster", "Leo Regulus",
-    "Virgo Spica", "Libra Scales", "Scorpius Heart", "Capricornus Sea", "Aquarius Water", "Pisces Void",
-    "Aries Ram", "Centaurus Alpha", "Lupus Wolf", "Crux Southern", "Musca Fly", "Chamaeleon",
-    "Volans Fish", "Pictor Painter", "Carina Keel", "Vela Sail", "Puppis Stern", "Pyxis Compass",
-    "Antlia Air", "Hydra Head", "Sextans", "Crater Cup", "Corvus Crow", "Ursa Furnace",
-    
-    # Quantum & Exotic (151-200)
-    "Singularity", "Event Horizon", "Hawking Point", "Schwarzschild", "Kerr Metric", "Wormhole Alpha",
-    "Tachyon Drift", "Dark Energy", "Zero Point", "Quantum Flux", "Planck Scale", "Heisenberg Veil",
-    "Dirac Sea", "Bose Condensate", "Fermion Field", "Gluon Storm", "Neutrino Flow", "Photon Cascade",
-    "Plasma Vortex", "Magnetar Core", "Pulsar Spin", "Neutron Drift", "White Dwarf", "Red Giant",
-    "Blue Supergiant", "Yellow Dwarf", "Brown Dwarf", "Hypergiant", "Protostar", "T-Tauri",
-    "Herbig-Haro", "FU Orionis", "Pre-Main", "Main Sequence", "Post-Main", "Asymptotic Giant",
-    "Horizontal Branch", "RR Lyrae", "Cepheid Variable", "Long Period", "Mira Variable", "Symbiotic",
-    
-    # Galactic Features (201-250)
-    "Galactic Core", "Barred Spiral", "Disk Edge", "Spiral Arm", "Molecular Cloud", "HII Region",
-    "Supernova Remnant", "Planetary Nebula", "Open Cluster", "Globular Cluster", "Galactic Bulge",
-    "Halo Stars", "Thick Disk", "Thin Disk", "Interstellar Medium", "Dust Lane", "Starburst Ring",
-    "Nuclear Star", "Central Black Hole", "Accretion Disk", "Relativistic Jet", "Gamma Burst",
-    "Blazar Core", "Quasar Jet", "Active Nucleus", "Seyfert Galaxy", "Starburst Galaxy",
-    "Lenticular", "Elliptical Core", "Irregular Patch", "Dwarf Spheroidal", "Ultra Diffuse",
-    
-    # Mythic Stellar (251-300)
-    "Olympus Mons", "Asgard Gate", "Valhalla", "Midgard Light", "Asgard Reach", "Yggdrasil Core",
-    "Ragnarok Rift", "Bifrost Bridge", "Niflheim Ice", "Muspelheim Fire", "Jotunheim", "Alfheim",
-    "Svartalfheim", "Vanaheim", "Helheim Void", "Fenrir Chain", "Jormungandr", "Sleipnir Run",
-    "Odin's Eye", "Thor's Hammer", "Loki's Fire", "Freyja's Tears", "Heimdall Watch",
-    "Skadi Frost", "Njord Sea", "Tyr Justice", "Baldr Light", "Hodr Dark", "Forseti Law",
-    
-    # Bonus Prime Systems (301-310)
-    "Zenith Prime", "Apogee Prime", "Nadir Prime", "Perihelion", "Aphelion Drift", "Lagrange Point",
-    "Roche Lobe", "Hill Sphere", "Parker Spiral", "Alfven Wave"
+        # Trade Hubs (8)
+        "Empyrean Station", "Stellar Crossing", "Meridian Gate", "Apex Citadel",
+        "Zenith Commerce", "Beacon Haven", "Convergence Point", "Sanctuary Station",
+        
+        # Mining Colonies (8)
+        "Ore Vein Prime", "Crystal Depths", "Iron Bastion", "Copper Run",
+        "Titanium Hold", "Precious Vault", "Wealth Deposit", "Treasure Trench",
+        
+        # Science Posts (8)
+        "Observatory Prime", "Research Station", "Analysis Center", "Study Point",
+        "Discovery Hub", "Knowledge Base", "Insight Center", "Truth Seeker",
+        
+        # Industrial Zones (8)
+        "Forge Central", "Foundry District", "Factory Hub", "Production Base",
+        "Assembly Prime", "Crafting Yards", "Workshop Zone", "Manufacture Point",
+        
+        # Agricultural/Resource (8)
+        "Harvest Station", "Growth Fields", "Abundance Zone", "Fertility Hub",
+        "Bounty Prime", "Prosperity Point", "Wealth Fields", "Rich Deposit",
+        
+        # Military/Defense (8)
+        "Guardian Post", "Defense Station", "Sentinel Base", "Fortress Prime",
+        "Stronghold Hub", "Bastion Point", "Outpost Alpha", "Patrol Station",
+        
+        # Exploration/Gateway (8)
+        "Pioneer Station", "Gateway Prime", "Explorer Hub", "Frontier Post",
+        "Venture Point", "Discovery Prime", "Passage Hub", "Transit Station",
+        
+        # Luxury/Tourism (8)
+        "Paradise Station", "Haven Prime", "Resort Hub", "Leisure Point",
+        "Comfort Station", "Oasis Prime", "Sanctuary Point", "Retreat Hub",
     ]
     random.shuffle(CORE_STAR_SYSTEM_NAMES)
 
-    def get_outlaw_system_name():
+    # Procedural system name prefixes and suffixes for outlaw regions
+    PROCEDURAL_PREFIXES = [
+        "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta",
+        "Iota", "Kappa", "Lambda", "Mu", "Nu", "Xi", "Omicron", "Pi",
+        "Rho", "Sigma", "Tau", "Upsilon", "Phi", "Chi", "Psi", "Omega"
+    ]
+    PROCEDURAL_SUFFIXES = [str(i) for i in range(1, 30)]
+    
+    def get_procedural_system_name():
         """
-        Generate a UUID-like name for outlaw systems.
-        Example: 'AJI-MH', 'M-XR2'
+        Generate a procedural name for systems (Greek letter + number for outlaw regions).
+        Example: 'Sigma-7', 'Zeta-12'
         """
-        return uuid.uuid4().hex[:3].upper() + "-" + uuid.uuid4().hex[:3].upper()
+        prefix = random.choice(PROCEDURAL_PREFIXES)
+        suffix = random.choice(PROCEDURAL_SUFFIXES)
+        return f"{prefix}-{suffix}"
 
     def int_to_roman(n):
         """Convert an integer to a Roman numeral."""
@@ -538,20 +659,45 @@ def seed_universe(db):
         db.add(region)
     db.flush()
 
-    # Step 3: Seed Star Systems (only first 300 core systems get fancy names)
+    # Step 3: Seed Star Systems with faction assignments
     seeded_systems = []
-    named_core_systems_count = 0
+    faction_star_system_map = {}  # Track faction stars for later use
     
     for region, system_count in zip(seeded_regions, systems_per_region):
         is_core = region.name in CORE_REGION_NAMES
-        for _ in range(system_count):
-            # First 300 core systems get fancy names, rest get UUID names
-            if is_core and named_core_systems_count < MAX_NAMED_CORE_SYSTEMS and CORE_STAR_SYSTEM_NAMES:
-                system_name = CORE_STAR_SYSTEM_NAMES.pop(0)
-                named_core_systems_count += 1
+        is_outlaw = region.name in OUTLAW_REGION_NAMES
+        
+        for i in range(system_count):
+            # Assign faction stars to their specific regions
+            system_name = None
+            
+            if is_core and region.name == "Forgeheart Dominion" and i == 0:
+                system_name = "Forge Prime"
+                faction_star_system_map["Forge Syndicate"] = system_name
+            elif is_core and region.name == "Crystal Crown Sector" and i == 0:
+                system_name = "Luminous Prime"
+                faction_star_system_map["Luminous Accord"] = system_name
+            elif is_core and region.name == "Ironclad Nexus" and i == 0:
+                system_name = "Titanborn Prime"
+                faction_star_system_map["Titanborn Consortium"] = system_name
+            elif is_core and region.name == "Radiant Spire Alliance" and i == 0:
+                system_name = "Unity Prime"
+                faction_star_system_map["Hegemony of Unity"] = system_name
+            elif is_core and region.name == "Cooperative Haven" and i == 0:
+                system_name = "Collective Prime"
+                faction_star_system_map["Stellar Collective"] = system_name
+            elif is_outlaw and region.name == "Shadowrift Fringe" and i == 0:
+                system_name = "Shadowveil"
+                faction_star_system_map["Voidrunners Collective"] = system_name
+            elif is_outlaw and region.name == "Eclipse Drift" and i == 0:
+                system_name = "Dreadstone"
+                faction_star_system_map["Ravagers of the Rift"] = system_name
             else:
-                # Use UUID-like name for overflow core and all outlaw systems
-                system_name = get_outlaw_system_name()
+                # Use available names or generate procedural names
+                if CORE_STAR_SYSTEM_NAMES and is_core:
+                    system_name = CORE_STAR_SYSTEM_NAMES.pop(0)
+                else:
+                    system_name = get_procedural_system_name()
 
             system = StarSystem(
                 name=system_name,
@@ -566,6 +712,11 @@ def seed_universe(db):
 
     # Step 4: Seed Planets
     seeded_planets = []
+    
+    # Validate that we have matching system and planet counts
+    if len(seeded_systems) != len(planets_per_system):
+        print(f"⚠️  Warning: System count ({len(seeded_systems)}) doesn't match planet count ({len(planets_per_system)})")
+        print(f"   This will result in missing planets. Truncating to {min(len(seeded_systems), len(planets_per_system))}")
     
     # Extract biome options and weights for weighted selection
     biome_choices = list(BIOME_WEIGHTS.keys())
@@ -595,18 +746,30 @@ def seed_universe(db):
     db.flush()
 
     # Step 5: Seed Locations and Resources for Each Planet
-    for planet in seeded_planets:
-        num_locations = calculate_num_locations(planet.radius)
-        seed_locations_and_resources(db, planet, num_locations)
-
-        db.commit()
-    print(f"Seeded {len(seeded_regions)} regions, {len(seeded_systems)} systems, {len(seeded_planets)} planets.")
+    try:
+        for idx, planet in enumerate(seeded_planets, 1):
+            num_locations = calculate_num_locations(planet.radius)
+            seed_locations_and_resources(db, planet, num_locations)
+            db.commit()
+            if idx % 50 == 0:
+                print(f"   Seeded locations for {idx}/{len(seeded_planets)} planets...")
+    except Exception as e:
+        print(f"❌ Error seeding locations: {e}")
+        db.rollback()
+        raise
+    
+    print(f"\n✅ Universe seeding complete!")
+    print(f"   Regions: {len(seeded_regions)} ({num_core} core, {num_outlaw} outlaw)")
+    print(f"   Star Systems: {len(seeded_systems)}")
+    print(f"   Planets: {len(seeded_planets)}")
+    print(f"   Faction Hubs: {len(faction_star_system_map)}")
+    print(f"   Factions: {', '.join(faction_star_system_map.keys())}")
     
 
 if __name__ == "__main__":
     db = SessionLocal()
     try:
-        print("Seeding the universe...")
+        print("🚀 Seeding the universe...")
         seed_universe(db)
     except Exception as e:
         import traceback
