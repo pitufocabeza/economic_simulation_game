@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dn3ydgsjvd1x1"]
+
+[ext_resource type="Script" uid="uid://c2pneyqa7jul4" path="res://scenes/temperate_map_generator.gd" id="1_lmn9o"]
+
+[node name="TemperateMapGenerator" type="Node2D" unique_id=666304986]
+script = ExtResource("1_lmn9o")

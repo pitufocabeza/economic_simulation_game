@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://d2a8l36w3cfd7"]
+
+[ext_resource type="Script" uid="uid://0frd7w5ytv43" path="res://scenes/temperate_tilemap_generator.gd" id="1_abc12"]
+
+[node name="IsometricFlatMapGenerator" type="Node2D" unique_id=1186406435]
+script = ExtResource("1_abc12")
