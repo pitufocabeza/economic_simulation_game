@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dvs5y5ty27lc5"]
+
+[ext_resource type="Script" uid="uid://bk3nllbg255yg" path="res://scenes/mesh_terrain_generator.gd" id="1_h1333"]
+
+[node name="Node3D" type="Node3D" unique_id=1370417448]
+script = ExtResource("1_h1333")
