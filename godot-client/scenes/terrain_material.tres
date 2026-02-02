@@ -1,0 +1,112 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://bqvvd4crvgbwx"]
+
+[sub_resource type="Shader" id="Shader_1"]
+code = "shader_type spatial;
+render_mode cull_back, diffuse_burley, specular_schlick_ggx;
+
+// Albedo textures
+uniform sampler2D grass_albedo : hint_default_white;
+uniform sampler2D sand_albedo : hint_default_white;
+uniform sampler2D ocean_albedo : hint_default_white;
+
+// Height normalization (must match terrain generation)
+uniform float min_height : hint_range(-10.0, 0.0) = -1.0;
+uniform float max_height : hint_range(0.0, 10.0) = 3.0;
+
+// Normalized height thresholds (0.0 to 1.0)
+uniform float water_level01 : hint_range(0.0, 1.0) = 0.2;
+uniform float beach_level01 : hint_range(0.0, 1.0) = 0.3;
+
+// Tiling scales
+uniform float grass_scale : hint_range(0.1, 10.0) = 3.0;
+uniform float sand_scale : hint_range(0.1, 10.0) = 2.0;
+uniform float ocean_scale : hint_range(0.1, 10.0) = 1.0;
+
+// Debug mode (set to 1.0 to see height gradient, 0.0 for textures)
+uniform float debug_mode : hint_range(0.0, 1.0) = 0.0;
+
+// Normal intensity
+uniform float normal_strength : hint_range(0.0, 2.0) = 0.5;
+
+// Normal textures
+uniform sampler2D ocean_normal : hint_normal;
+
+varying vec3 world_pos;
+
+void vertex() {
+	world_pos = WORLD_POSITION;
+}
+
+void fragment() {
+	// Normalize height to 0.0-1.0 range
+	float height = world_pos.y;
+	float height01 = clamp(
+		(height - min_height) / (max_height - min_height),
+		0.0,
+		1.0
+	);
+	
+	vec3 final_color = vec3(0.5); // Default grey
+	vec3 normal_map = vec3(0.5, 0.5, 1.0); // Default normal (pointing up)
+	
+	// DEBUG MODE: Show height gradient
+	if (debug_mode > 0.5) {
+		final_color = vec3(height01);
+	}
+	// TEXTURE MODE: Classify and sample textures
+	else {
+		// Use world position for texture tiling
+		vec2 uv_base = world_pos.xz;
+		
+		// WATER: Below water threshold
+		if (height01 < water_level01) {
+			uv_base *= ocean_scale;
+			final_color = texture(ocean_albedo, uv_base).rgb;
+			normal_map = texture(ocean_normal, uv_base).rgb;
+		}
+		// BEACH: Between water and beach thresholds
+		else if (height01 < beach_level01) {
+			uv_base *= sand_scale;
+			final_color = texture(sand_albedo, uv_base).rgb;
+		}
+		// LAND: Above beach threshold
+		else {
+			uv_base *= grass_scale;
+			final_color = texture(grass_albedo, uv_base).rgb;
+		}
+	}
+	
+	ALBEDO = final_color;
+	NORMAL_MAP = normal_map;
+	NORMAL_MAP_DEPTH = normal_strength;
+	ROUGHNESS = 0.7;
+}
+"
+
+[sub_resource type="Texture2D" id="Texture2D_grass"]
+resource_path = "res://assets/materials/grass_albedo.png"
+
+[sub_resource type="Texture2D" id="Texture2D_sand"]
+resource_path = "res://assets/materials/sand_albedo.png"
+
+[sub_resource type="Texture2D" id="Texture2D_ocean"]
+resource_path = "res://assets/materials/ocean_base_albedo.png"
+
+[sub_resource type="Texture2D" id="Texture2D_ocean_normal"]
+resource_path = "res://assets/materials/ocean_base_normal.png"
+
+[resource]
+shader = SubResource("Shader_1")
+shader_parameter/min_height = -1.0
+shader_parameter/max_height = 3.0
+shader_parameter/water_level01 = 0.2
+shader_parameter/beach_level01 = 0.3
+shader_parameter/grass_scale = 3.0
+shader_parameter/sand_scale = 2.0
+shader_parameter/ocean_scale = 1.0
+shader_parameter/debug_mode = 1.0
+shader_parameter/normal_strength = 0.5
+shader_parameter/grass_albedo = SubResource("Texture2D_grass")
+shader_parameter/sand_albedo = SubResource("Texture2D_sand")
+shader_parameter/ocean_albedo = SubResource("Texture2D_ocean")
+shader_parameter/ocean_normal = SubResource("Texture2D_ocean_normal")

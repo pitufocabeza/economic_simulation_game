@@ -5,21 +5,12 @@
 [ext_resource type="Terrain3DMaterial" uid="uid://bd4fl7jl1g22t" path="res://assets/materials/terrain_3d_material.tres" id="2_m8nux"]
 [ext_resource type="Texture2D" uid="uid://c2hw630hyp76u" path="res://assets/materials/grass_albedo.png" id="3_hfooi"]
 [ext_resource type="Texture2D" uid="uid://dlbefhf2xxfub" path="res://assets/materials/grass_normal.png" id="4_0gnnk"]
-[ext_resource type="Texture2D" uid="uid://cgh3j2dgnvkig" path="res://assets/materials/grass_orm.png" id="4_22fqn"]
 [ext_resource type="Texture2D" uid="uid://bqgscedom4rrs" path="res://assets/materials/rock_base_albedo.png" id="5_c8ocu"]
 [ext_resource type="Texture2D" uid="uid://hk6hhq3tgkjv" path="res://assets/materials/rock_base_normal.png" id="6_w2i2v"]
-[ext_resource type="Texture2D" uid="uid://bf3nsgxo6ao2s" path="res://assets/materials/sand_orm.png" id="7_8jddl"]
 [ext_resource type="Texture2D" uid="uid://b6lm7pijeo7fl" path="res://assets/materials/sand_albedo.png" id="7_cbs8q"]
 [ext_resource type="Texture2D" uid="uid://b4sybrhmjamop" path="res://assets/materials/sand_normal.png" id="8_2tttb"]
 [ext_resource type="Texture2D" uid="uid://e57vbk36n8tb" path="res://assets/materials/snow_base_albedo.png" id="9_b2ye4"]
 [ext_resource type="Texture2D" uid="uid://c377rj1itkchd" path="res://assets/materials/snow_base_normal.png" id="10_4hdwx"]
-[ext_resource type="Texture2D" uid="uid://b4fnak5qerbqs" path="res://assets/materials/rock_base_orm.png" id="10_duxm1"]
-[ext_resource type="Texture2D" uid="uid://dcgoikqav3gq2" path="res://assets/materials/ocean_shallow_albedo.png" id="11_2tttb"]
-[ext_resource type="Texture2D" uid="uid://bbgpvclem6oah" path="res://assets/materials/ocean_shallow_normal.png" id="12_2tttb"]
-[ext_resource type="Texture2D" uid="uid://b86bje76v54yl" path="res://assets/materials/ocean_base_albedo.png" id="13_4hdwx"]
-[ext_resource type="Texture2D" uid="uid://ccsa7sjp5yg78" path="res://assets/materials/ocean_base_normal.png" id="14_22fqn"]
-[ext_resource type="Texture2D" uid="uid://cxniwkbnuo5t8" path="res://assets/materials/ocean_deep_albedo.png" id="15_8jddl"]
-[ext_resource type="Texture2D" uid="uid://dmkbaumogo656" path="res://assets/materials/ocean_deep_normal.png" id="16_duxm1"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6f7u6"]
 transparency = 4
@@ -40,7 +31,7 @@ last_shadow_lod = 0
 lod0_range = 128.0
 
 [sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_22fqn"]
-name = "Rock"
+name = "rock"
 albedo_texture = ExtResource("5_c8ocu")
 normal_texture = ExtResource("6_w2i2v")
 ao_strength = 0.57
@@ -50,7 +41,7 @@ detiling_rotation = 0.202
 detiling_shift = 0.114
 
 [sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_duxm1"]
-name = "Snow"
+name = ""
 id = 1
 albedo_texture = ExtResource("9_b2ye4")
 normal_texture = ExtResource("10_4hdwx")
@@ -62,7 +53,7 @@ detiling_rotation = 0.5
 detiling_shift = 0.25
 
 [sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_8pvep"]
-name = "Grass"
+name = "grass"
 id = 2
 albedo_texture = ExtResource("3_hfooi")
 normal_texture = ExtResource("4_0gnnk")
@@ -74,7 +65,7 @@ detiling_rotation = 0.3
 detiling_shift = 0.15
 
 [sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_8jddl"]
-name = "Sand"
+name = "sand"
 id = 3
 albedo_texture = ExtResource("7_cbs8q")
 normal_texture = ExtResource("8_2tttb")
@@ -85,45 +76,12 @@ uv_scale = 0.23
 detiling_rotation = 0.4
 detiling_shift = 0.2
 
-[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_w15m2"]
-name = "ocean_shallow"
-id = 4
-albedo_texture = ExtResource("11_2tttb")
-normal_texture = ExtResource("12_2tttb")
-normal_depth = 0.166
-ao_strength = 0.167
-
-[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_yv300"]
-name = "ocean_base"
-id = 5
-albedo_texture = ExtResource("13_4hdwx")
-normal_texture = ExtResource("14_22fqn")
-
-[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_r3rig"]
-name = "ocean_deep"
-id = 6
-albedo_texture = ExtResource("15_8jddl")
-normal_texture = ExtResource("16_duxm1")
-
 [sub_resource type="Terrain3DAssets" id="Terrain3DAssets_wcsy6"]
 mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_dip4x")])
-texture_list = Array[Terrain3DTextureAsset]([SubResource("Terrain3DTextureAsset_22fqn"), SubResource("Terrain3DTextureAsset_duxm1"), SubResource("Terrain3DTextureAsset_8pvep"), SubResource("Terrain3DTextureAsset_8jddl"), SubResource("Terrain3DTextureAsset_w15m2"), SubResource("Terrain3DTextureAsset_yv300"), SubResource("Terrain3DTextureAsset_r3rig")])
+texture_list = Array[Terrain3DTextureAsset]([SubResource("Terrain3DTextureAsset_22fqn"), SubResource("Terrain3DTextureAsset_duxm1"), SubResource("Terrain3DTextureAsset_8pvep"), SubResource("Terrain3DTextureAsset_8jddl")])
 
 [node name="Node3D" type="Node3D" unique_id=399463025]
 script = ExtResource("1_ny1kc")
-grass_albedo = ExtResource("3_hfooi")
-grass_normal = ExtResource("4_0gnnk")
-grass_orm = ExtResource("4_22fqn")
-sand_albedo = ExtResource("7_cbs8q")
-sand_normal = ExtResource("8_2tttb")
-sand_orm = ExtResource("7_8jddl")
-rock_albedo = ExtResource("5_c8ocu")
-rock_normal = ExtResource("6_w2i2v")
-rock_orm = ExtResource("10_duxm1")
-snow_albedo = ExtResource("9_b2ye4")
-snow_normal = ExtResource("10_4hdwx")
-ocean_albedo = ExtResource("13_4hdwx")
-ocean_normal = ExtResource("14_22fqn")
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=1677697234]
 data_directory = "res://regions"
@@ -135,6 +93,3 @@ metadata/_edit_lock_ = true
 [node name="Camera3D" type="Camera3D" parent="Terrain3D" unique_id=1819486192]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32, 20, -32)
 script = ExtResource("2_3pwuh")
-
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=609893607]
-transform = Transform3D(0.46499693, -0.4318788, 0.77282506, -0.43491107, 0.6489124, 0.6243118, -0.7711226, -0.6264132, 0.11391328, 33.922546, 520.2916, 284.01917)

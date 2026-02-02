@@ -68,7 +68,7 @@ func _generate_initial_plot(seed: int) -> void:
 		var result = plot_integrator.generate_and_apply(seed)
 		print("Generated plot archetype: %s" % result.get("archetype", "unknown"))
 	else:
-		print("⚠️  Cannot generate plot - missing Terrain3D or PlotIntegrator")
+		print("⚠️  Ct generate plot - missing Terrain3D or PlotIntegrator")
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_SPACE:

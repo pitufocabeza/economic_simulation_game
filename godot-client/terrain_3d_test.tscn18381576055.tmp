@@ -122,8 +122,6 @@ rock_normal = ExtResource("6_w2i2v")
 rock_orm = ExtResource("10_duxm1")
 snow_albedo = ExtResource("9_b2ye4")
 snow_normal = ExtResource("10_4hdwx")
-ocean_albedo = ExtResource("13_4hdwx")
-ocean_normal = ExtResource("14_22fqn")
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=1677697234]
 data_directory = "res://regions"
