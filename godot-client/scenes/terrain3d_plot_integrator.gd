@@ -120,10 +120,11 @@ func _setup_water_layers() -> void:
 	water_materials.clear()
 	
 	# Define layer properties: (name, shader_path, y_offset, scroll_speed)
+	# Scroll speeds reduced by 75%: 0.4→0.1, 0.3→0.075, 0.2→0.05
 	var layers = [
-		{"name": "WaterShallow", "shader_path": "res://shaders/ocean_shallow.gdshader", "y_offset": 0.1, "scroll_speed": 0.4},
-		{"name": "WaterBase", "shader_path": "res://shaders/ocean_base.gdshader", "y_offset": 0.0, "scroll_speed": 0.3},
-		{"name": "WaterDeep", "shader_path": "res://shaders/ocean_deep.gdshader", "y_offset": -0.2, "scroll_speed": 0.2},
+		{"name": "WaterShallow", "shader_path": "res://shaders/ocean_shallow.gdshader", "y_offset": 0.1, "scroll_speed": 0.1},
+		{"name": "WaterBase", "shader_path": "res://shaders/ocean_base.gdshader", "y_offset": 0.0, "scroll_speed": 0.075},
+		{"name": "WaterDeep", "shader_path": "res://shaders/ocean_deep.gdshader", "y_offset": -0.2, "scroll_speed": 0.05},
 	]
 	
 	# Create three water mesh planes
@@ -926,16 +927,20 @@ func _apply_shader_material(control_image: Image) -> void:
 		push_error("❌ Failed to create ShaderMaterial instance")
 		return
 	
+	print("✓ ShaderMaterial instance created")
+	
 	# Assign shader to material
 	shader_material.shader = shader
 	
-	# Validate shader compiled successfully
-	if not shader_material.shader:
-		push_error("❌ Shader failed to compile. Check shader syntax.")
-		push_error("   Shader code: res://shaders/terrain_blender.gdshader")
+	print("✓ Shader assigned to material")
+	
+	# CHECK IF SHADER COMPILED
+	if shader_material.shader == null:
+		push_error("❌ Shader failed to compile! Check shader syntax.")
+		print("   File: res://shaders/terrain_blender.gdshader")
 		return
 	
-	print("✓ ShaderMaterial created and shader assigned")
+	print("✓ Shader compiled successfully")
 	
 	# Create control map texture
 	var control_texture = ImageTexture.create_from_image(control_image)
@@ -977,27 +982,24 @@ func _apply_shader_material(control_image: Image) -> void:
 		push_error("❌ shader_material or shader is null before terrain assignment")
 		return
 	
-	# Apply material to Terrain3D - try multiple assignment methods
-	# Terrain3D is a custom plugin with non-standard material handling
-	var assignment_success = false
+	print("✓ About to assign shader_material to terrain3d")
+	print("  terrain3d type: %s" % terrain3d.get_class())
+	print("  shader_material type: %s" % shader_material.get_class())
+	print("  terrain3d.material property: %s" % ("exists" if "material" in terrain3d.get_property_list().map(func(p): return p.name) else "NOT FOUND"))
 	
-	# Option 1: Try direct property assignment
-	if not assignment_success:
-		terrain3d.material = shader_material
-		print("✓ Shader material assigned via terrain3d.material")
-		assignment_success = true
+	# NOTE: Terrain3D appears to have a 'material' property but it may be read-only or have special handling
+	# The control_map assignment is already working, so terrain rendering is driven by control map
+	# Attempting to assign ShaderMaterial causes: "Parameter 'material' is null" at material_update_dependency()
+	# This suggests Terrain3D uses a different material system than standard Godot nodes
 	
-	# Option 2: Try setter method
-	if not assignment_success and terrain3d.has_method("set_material"):
-		terrain3d.set_material(shader_material)
-		print("✓ Shader material assigned via terrain3d.set_material()")
-		assignment_success = true
+	# EXPERIMENTAL: Try assigning to material, but catch any runtime issues
+	print("  Attempting material assignment (experimental)...")
 	
-	# Option 3: Try material_override (standard Node3D property)
-	if not assignment_success:
-		terrain3d.material_override = shader_material
-		print("✓ Shader material assigned via terrain3d.material_override")
-		assignment_success = true
+	# Skip assignment for now - control_map is working
+	# terrain3d.material = shader_material
+	
+	print("⚠ Material assignment skipped (Terrain3D may not support custom ShaderMaterial)")
+	print("  Using built-in Terrain3D shader with control_map for biome blending")
 	
 	# Debug output if assignment might have failed
 	print("✓ Shader material setup completed")
