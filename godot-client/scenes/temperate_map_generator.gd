@@ -5,7 +5,7 @@ var ARCHETYPES = {
 	"Flat Plains": {
 		"buildable_ratio": 0.80,
 		"sea_level": 0.35,
-		"coast_falloff": 0.12,
+		"coast_falloff": 0.0,
 		"height_power": 1.2,
 		"base_roughness": 0.3,
 		"noise_scale": 1.0,
@@ -24,26 +24,26 @@ var ARCHETYPES = {
 	},
 	"Coastal Shelf": {
 		"buildable_ratio": 0.65,
-		"sea_level": 0.40,
+		"sea_level": 0.25,
 		"coast_falloff": 0.15,
-		"height_power": 1.1,
-		"base_roughness": 0.5,
-		"noise_scale": 0.8,
-		"octaves": 5,
-		"frequency": 0.035,
+		"height_power": 1.0,
+		"base_roughness": 0.15,
+		"noise_scale": 0.25,
+		"octaves": 3,
+		"frequency": 0.02,
 		"has_coast": true,
 		"has_river": true,
 		"river_width": 2,
 		"river_depth": 0.4,
 		"macro_shape": "one_sided_coast",
-		"shelf_depth": 0.15,
-		"inland_wall": 0.45,
+		"shelf_depth": 0.08,
+		"inland_wall": 0.35,
 		"height_pattern": func(_rng: RandomNumberGenerator) -> Array:
 			return [
-				[0.50, 0.50, 0.55, 0.55],
-				[0.50, 0.55, 0.55, 0.60],
-				[0.55, 0.45, 0.45, 0.50],
-				[0.50, 0.45, 0.40, 0.45]
+				[0.22, 0.26, 0.32, 0.50],
+				[0.22, 0.26, 0.34, 0.52],
+				[0.22, 0.26, 0.32, 0.50],
+				[0.22, 0.26, 0.34, 0.48]
 			],
 	},
 	"Gentle Hills": {
@@ -147,9 +147,34 @@ func _setup_lighting() -> void:
 	light.position = Vector3(32.0, 64.0, 32.0)
 	light.rotation = Vector3(deg_to_rad(-45.0), deg_to_rad(-45.0), 0.0)
 	
-	light.energy = 2.0
+	light.light_energy = 2.0
 	light.shadow_enabled = true
-	light.shadow_blur = 1
+	light.shadow_blur = 2.0  # Softer shadows
+	light.light_angular_distance = 2.0  # Larger sun for softer lighting
+	
+	# Setup WorldEnvironment with fog if not present
+	var world_env = get_viewport().find_child("WorldEnvironment", true, false)
+	if not world_env:
+		world_env = WorldEnvironment.new()
+		world_env.name = "WorldEnvironment"
+		add_child(world_env)
+		
+		var env = Environment.new()
+		# Enable exponential fog for depth
+		env.fog_enabled = true
+		env.fog_light_color = Color(0.85, 0.88, 0.95)
+		env.fog_density = 0.0005
+		env.fog_aerial_perspective = 0.3
+		
+		# Adjust ambient light
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = Color(0.7, 0.75, 0.8)
+		env.ambient_light_energy = 0.4
+		
+		world_env.environment = env
+		print("✓ Created WorldEnvironment with fog")
+	else:
+		print("✓ WorldEnvironment already exists")
 	
 	print("✓ Terrain lighting setup complete")
 
@@ -256,18 +281,26 @@ func _macro_height(archetype: String, x_n: float, z_n: float) -> float:
 			return lerp(sea_level + 0.05, rim_height, valley_amount)
 		
 		"one_sided_coast":
-			# Coastal Shelf: Shallow shelf near coast, mountain wall inland
-			# Coast is typically on left edge (x_n ~ 0)
-			var shelf_depth = archetype_data.get("shelf_depth", 0.15)
-			var inland_wall = archetype_data.get("inland_wall", 0.45)
-			var coast_dist = x_n  # Distance from left coast
-			if coast_dist < 0.3:
-				# Near coast: shallow shelf
-				return sea_level + shelf_depth * (1.0 - (coast_dist / 0.3))
+			# Coastal Shelf: Distinct horizontal zones from left to right
+			# Zone layout: Water (0-25%) | Beach (25-40%) | Grassland (40-75%) | Mountains (75-100%)
+			var coast_dist = x_n  # Distance from left edge (0=water, 1=inland)
+			
+			if coast_dist < 0.25:
+				# Water zone (left 25%): Underwater shelf
+				var depth_blend = coast_dist / 0.25
+				return lerp(sea_level - 0.05, sea_level - 0.01, depth_blend)
+			elif coast_dist < 0.40:
+				# Beach/sand zone (25-40%): Narrow coastal strip
+				var beach_blend = (coast_dist - 0.25) / 0.15
+				return lerp(sea_level + 0.01, sea_level + 0.03, beach_blend)
+			elif coast_dist < 0.75:
+				# Grassland zone (40-75%): Buildable shelf
+				var grass_blend = (coast_dist - 0.40) / 0.35
+				return lerp(sea_level + 0.03, sea_level + 0.15, grass_blend)
 			else:
-				# Far from coast: ramp up to inland wall
-				var inland_blend = (coast_dist - 0.3) / 0.7
-				return lerp(sea_level + shelf_depth, sea_level + inland_wall, inland_blend)
+				# Mountain zone (75-100%): Steep inland cliffs
+				var mountain_blend = (coast_dist - 0.75) / 0.25
+				return lerp(sea_level + 0.15, sea_level + 0.45, mountain_blend)
 		
 		"gentle_bowl":
 			# River Basin: Gentle slope from one corner toward opposite
@@ -509,14 +542,25 @@ func _carve_river(height_map: Array, archetype: String, coast_mask: Array, rng: 
 	var start_edge: int
 	var end_edge: int
 	
-	if archetype == "River Basin":
+	# River parameters vary by archetype
+	var is_river_basin = (archetype == "River Basin")
+	var is_coastal_shelf = (archetype == "Coastal Shelf")
+	var carve_multiplier = 1.5 if is_river_basin else 1.0  # River Basin has deeper rivers
+	var width_multiplier = 1.5 if is_river_basin else 1.2   # River Basin has wider rivers
+	
+	if is_river_basin:
 		# Opposite edges for deep inland river
 		start_edge = rng.randi_range(0, 3)
 		end_edge = (start_edge + 2) % 4
-	else:  # Coastal Shelf
-		# From inland toward coast
+	elif is_coastal_shelf:
+		# Coastal Shelf: river flows from inland (top/right/bottom) to coast (left edge=3)
+		# Left edge is 3 in our edge numbering
+		end_edge = 3  # Coast is on left
+		start_edge = rng.randi_range(0, 2)  # Start from top(0), right(1), or bottom(2)
+	else:
+		# Other archetypes: random flow
 		start_edge = rng.randi_range(0, 3)
-		end_edge = start_edge
+		end_edge = (start_edge + rng.randi_range(1, 3)) % 4
 	
 	var path = _generate_river_path(start_edge, end_edge, height_map, coast_mask, rng)
 	
@@ -558,8 +602,9 @@ func _carve_river(height_map: Array, archetype: String, coast_mask: Array, rng: 
 		var local_min = local_minima.get(waypoint, height_map[cz][cx])
 		
 		# Carve around waypoint with Gaussian profile
-		for dz in range(-river_width * 2, river_width * 2 + 1):
-			for dx in range(-river_width * 2, river_width * 2 + 1):
+		var carve_radius = int(float(river_width) * width_multiplier)
+		for dz in range(-carve_radius, carve_radius + 1):
+			for dx in range(-carve_radius, carve_radius + 1):
 				var px = cx + dx
 				var pz = cz + dz
 				
@@ -569,16 +614,19 @@ func _carve_river(height_map: Array, archetype: String, coast_mask: Array, rng: 
 					var sigma = float(river_width) * 0.6
 					var gaussian = exp(-dist_sq / (2.0 * sigma * sigma))
 					
-					# Carve depth relative to local terrain
-					var carve_amount = river_depth * gaussian
+					# Carve depth (deeper for River Basin)
+					var carve_amount = river_depth * gaussian * carve_multiplier
 					var current_height = height_map[pz][px]
 					
 					# Lower to local minimum minus carve amount
 					var target_height = local_min - carve_amount
 					
-					# Ensure river is well below sea level for visibility
-					target_height = minf(current_height - carve_amount, sea_level * 0.75)
-					target_height = maxf(target_height, 0.0)
+					# Ensure river is BELOW actual water render level (WATER_LEVEL_NORM = 0.25)
+					# Not archetype sea_level which can be higher!
+					var actual_water_level = 0.25
+					var max_depth = actual_water_level * (0.75 if is_river_basin else 0.90)
+					target_height = minf(current_height - carve_amount, max_depth)
+					target_height = maxf(target_height, actual_water_level * 0.50)
 					
 					height_map[pz][px] = target_height
 	
@@ -686,9 +734,201 @@ func _generate_height_map(archetype: String, rng: RandomNumberGenerator) -> Arra
 				
 				row.append(height)
 		height_map.append(row)
+
+	# Post-processing: Ensure terrain supports buildability
+	# This creates flat buildable core and steep edge mountains
+	height_map = _flatten_buildable_core(height_map, archetype)
+	height_map = _force_edge_mountains(height_map, archetype)
 	
-	# Carve river if archetype has one
+	# Carve river AFTER post-processing so it cuts through the flattened terrain
+	# This ensures river is visible and not smoothed away by core flattening
 	if archetype_data.has("has_river") and archetype_data["has_river"]:
 		height_map = _carve_river(height_map, archetype, coast_mask, rng)
 	
 	return height_map
+
+func _flatten_buildable_core(height_map: Array, archetype: String) -> Array:
+	"""Dampen micro-slopes in the buildable interior region.
+	
+	Purpose: Reduce high-frequency noise that creates accidental steep slopes.
+	The interior should feel intentionally flat and usable for buildings.
+	
+	Does NOT aggressively flatten - preserves overall height variation.
+	Only smooths out sharp local bumps that would block building placement.
+	
+	Uses archetype's buildable_ratio to determine interior radius.
+	"""
+	var archetype_data = ARCHETYPES[archetype]
+	var buildable_ratio = archetype_data.get("buildable_ratio", 0.70)
+	
+	var size = height_map.size()
+	var center = float(size) * 0.5
+	
+	# Determine radius of buildable core (larger ratio = larger calm zone)
+	var core_radius = (buildable_ratio * 0.45) * float(size)  # 0.45 = conservative interior
+	var transition_width = float(size) * 0.15  # Soft falloff to edges
+	
+	var processed_map = height_map.duplicate(true)
+	
+	for z in range(size):
+		for x in range(size):
+			var fx = float(x)
+			var fz = float(z)
+			
+			# Distance from center
+			var dx = fx - center
+			var dy = fz - center
+			var dist = sqrt(dx * dx + dy * dy)
+			
+			# Calculate influence (1.0 = full interior, 0.0 = edge)
+			var influence = 0.0
+			if dist < core_radius:
+				influence = 1.0
+			elif dist < core_radius + transition_width:
+				# Smooth falloff from core to edge
+				var t = (dist - core_radius) / transition_width
+				influence = 1.0 - _smoothstep(0.0, 1.0, t)
+			
+			# Apply smoothing only where influence > 0
+			if influence > 0.05:
+				# Sample 3x3 neighborhood for local average
+				var sum_height = 0.0
+				var count = 0
+				
+				for dz in range(-1, 2):
+					for dx_sample in range(-1, 2):
+						var nx = x + dx_sample
+						var nz = z + dz
+						if nx >= 0 and nx < size and nz >= 0 and nz < size:
+							sum_height += height_map[nz][nx]
+							count += 1
+				
+				var local_avg = sum_height / float(count) if count > 0 else height_map[z][x]
+				var original = height_map[z][x]
+				
+				# Blend toward local average (dampens micro-slopes)
+				# Strong influence = more smoothing (interior)
+				# Weak influence = preserve detail (near edges)
+				var smoothing_strength = influence * 0.75  # Max 75% smoothing
+				processed_map[z][x] = lerp(original, local_avg, smoothing_strength)
+	
+	return processed_map
+
+
+func _force_edge_mountains(height_map: Array, archetype: String) -> Array:
+	"""Create steep, clearly non-buildable cliffs at region edges.
+	
+	Purpose: Act as hard expansion blockers and visual boundaries.
+	Prevents ambiguous "maybe buildable" slopes at borders.
+	
+	Raises terrain near edges using distance-based falloff.
+	Creates a natural mountain ring or cliff band.
+	
+	Respects archetypes that already have edge features (e.g., Coastal Shelf).
+	"""
+	var archetype_data = ARCHETYPES[archetype]
+	var sea_level = archetype_data.get("sea_level", 0.35)
+	
+	# Skip edge forcing for coastal archetypes (they handle edges differently)
+	if archetype == "Coastal Shelf":
+		return height_map  # Coast already has clear water boundary
+	
+	var size = height_map.size()
+	var processed_map = height_map.duplicate(true)
+	
+	# Edge mountain parameters
+	var edge_depth = float(size) * 0.18  # How far inward mountains extend
+	var mountain_height_boost = 0.35  # Height increase at edges (in normalized units)
+	var mountain_min_height = sea_level + 0.25  # Ensure edges are well above sea level
+	
+	for z in range(size):
+		for x in range(size):
+			# Distance to nearest edge
+			var dist_to_edge = float(min(min(x, size - 1 - x), min(z, size - 1 - z)))
+			
+			# Calculate mountain influence (1.0 at edge, 0.0 at interior)
+			var mountain_influence = 0.0
+			if dist_to_edge < edge_depth:
+				var t = dist_to_edge / edge_depth
+				# Steep falloff: mountains are concentrated at edges
+				mountain_influence = 1.0 - pow(t, 2.5)
+			
+			if mountain_influence > 0.05:
+				var original_height = height_map[z][x]
+				
+				# Add mountain height boost
+				var boosted_height = original_height + (mountain_height_boost * mountain_influence)
+				
+				# Ensure edges are high enough to be steep
+				boosted_height = maxf(boosted_height, mountain_min_height * mountain_influence)
+				
+				# Clamp to valid range
+				boosted_height = clampf(boosted_height, 0.0, 1.0)
+				
+				processed_map[z][x] = boosted_height
+	
+	return processed_map
+
+
+func _soften_river_banks(height_map: Array) -> Array:
+	"""Smooth height transitions near rivers to prevent accidental steep banks.
+	
+	Purpose: Rivers should be accessible, not surrounded by cliffs.
+	Applies gentle smoothing in a corridor around low-elevation areas (rivers/water).
+	
+	Only affects areas that are already low (likely river valleys).
+	Does not aggressively flatten the entire map.
+	"""
+	var size = height_map.size()
+	var processed_map = height_map.duplicate(true)
+	
+	# Identify likely river/water areas (low elevation)
+	var water_threshold = 0.30  # Normalized height below which we consider it water/river
+	var smooth_radius = 2  # Tiles around water to smooth
+	
+	# First pass: identify water areas
+	var water_mask = []
+	for z in range(size):
+		var row = []
+		for x in range(size):
+			row.append(height_map[z][x] < water_threshold)
+		water_mask.append(row)
+	
+	# Second pass: smooth areas near water
+	for z in range(size):
+		for x in range(size):
+			# Check if this tile is near water
+			var near_water = false
+			
+			for dz in range(-smooth_radius, smooth_radius + 1):
+				for dx in range(-smooth_radius, smooth_radius + 1):
+					var nx = x + dx
+					var nz = z + dz
+					if nx >= 0 and nx < size and nz >= 0 and nz < size:
+						if water_mask[nz][nx]:
+							near_water = true
+							break
+					if near_water:
+						break
+			
+			# If near water, apply gentle smoothing
+			if near_water:
+				var sum_height = 0.0
+				var count = 0
+				
+				# 3x3 neighborhood average
+				for dz in range(-1, 2):
+					for dx_sample in range(-1, 2):
+						var nx = x + dx_sample
+						var nz = z + dz
+						if nx >= 0 and nx < size and nz >= 0 and nz < size:
+							sum_height += height_map[nz][nx]
+							count += 1
+				
+				var local_avg = sum_height / float(count) if count > 0 else height_map[z][x]
+				var original = height_map[z][x]
+				
+				# Gentle blend (40% smoothing near rivers)
+				processed_map[z][x] = lerp(original, local_avg, 0.4)
+	
+	return processed_map

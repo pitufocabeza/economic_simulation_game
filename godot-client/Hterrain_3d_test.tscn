@@ -1,0 +1,55 @@
+[gd_scene format=3 uid="uid://8qdi1kixq52y"]
+
+[ext_resource type="Script" uid="uid://cvqdvtgjgjvoq" path="res://scenes/hterrain_plot_integrator.gd" id="1_bqnw4"]
+[ext_resource type="Script" uid="uid://dy14626vyigno" path="res://addons/zylann.hterrain/hterrain.gd" id="2_85r5b"]
+[ext_resource type="Resource" uid="uid://ccf7nyfb632jb" path="res://assets/materials/data.hterrain" id="3_85r5b"]
+[ext_resource type="Script" uid="uid://idx4qktvliox" path="res://addons/zylann.hterrain/hterrain_texture_set.gd" id="3_ot7q0"]
+[ext_resource type="Texture2D" uid="uid://d3t042g2jb245" path="res://assets/materials/slot0_albedo_bump.png" id="4_lfy63"]
+[ext_resource type="Texture2D" uid="uid://dd07k7tqnq1f4" path="res://assets/materials/slot1_albedo_bump.png" id="5_w5emm"]
+[ext_resource type="Texture2D" uid="uid://cjr8m66d8rhvu" path="res://assets/materials/slot2_albedo_bump.png" id="6_fy84s"]
+[ext_resource type="Texture2D" uid="uid://chiqng7thj7s5" path="res://assets/materials/slot3_albedo_bump.png" id="7_xfjw7"]
+[ext_resource type="Texture2D" uid="uid://dm4ckyyo7tlvg" path="res://assets/materials/slot0_normal_roughness.png" id="8_isuj6"]
+[ext_resource type="Texture2D" uid="uid://bl4hiqoujdvq5" path="res://assets/materials/slot1_normal_roughness.png" id="9_rl7qg"]
+[ext_resource type="Texture2D" uid="uid://dducsathkp6vd" path="res://assets/materials/slot2_normal_roughness.png" id="10_31qo3"]
+[ext_resource type="Texture2D" uid="uid://dvr700os0iht" path="res://assets/materials/slot3_normal_roughness.png" id="11_hnlla"]
+[ext_resource type="Script" uid="uid://c2pneyqa7jul4" path="res://scenes/temperate_map_generator.gd" id="13_ot7q0"]
+[ext_resource type="Script" uid="uid://qmhoy7m7r668" path="res://scripts/free_fly_camera.gd" id="14_lfy63"]
+
+[sub_resource type="Resource" id="Resource_6taa7"]
+script = ExtResource("3_ot7q0")
+mode = 0
+textures = [[ExtResource("4_lfy63"), ExtResource("5_w5emm"), ExtResource("6_fy84s"), ExtResource("7_xfjw7")], [ExtResource("8_isuj6"), ExtResource("9_rl7qg"), ExtResource("10_31qo3"), ExtResource("11_hnlla")]]
+
+[node name="Node3D" type="Node3D" unique_id=1876209208]
+script = ExtResource("1_bqnw4")
+
+[node name="HTerrain" type="Node3D" parent="." unique_id=1631912158]
+script = ExtResource("2_85r5b")
+_terrain_data = ExtResource("3_85r5b")
+chunk_size = 32
+collision_enabled = true
+collision_layer = 1
+collision_mask = 1
+physics_material = null
+shader_type = "Classic4Lite"
+custom_shader = null
+custom_globalmap_shader = null
+texture_set = SubResource("Resource_6taa7")
+render_layers = 1
+cast_shadow = 1
+shader_params/u_ground_uv_scale = 20
+shader_params/u_depth_blending = true
+shader_params/u_triplanar = false
+shader_params/u_tile_reduction = Vector4(0, 0, 0, 0)
+shader_params/u_specular = 0.5
+metadata/_custom_type_script = "uid://dy14626vyigno"
+
+[node name="PlotGenerator" type="Node3D" parent="." unique_id=1455387990]
+script = ExtResource("13_ot7q0")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1239170478]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 256, 100, 256)
+script = ExtResource("14_lfy63")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=778635792]
+transform = Transform3D(0.70710677, 0.70710677, 0, -0.49999997, 0.49999997, 0.70710677, 0.49999997, -0.49999997, 0.70710677, 0, 0, 0)
