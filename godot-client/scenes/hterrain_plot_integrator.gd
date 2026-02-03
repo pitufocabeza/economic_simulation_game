@@ -312,6 +312,10 @@ func _set_plot_size(size: int) -> void:
 	"""Set the plot grid resolution on the generator."""
 	if plot_generator:
 		plot_generator.GRID_RESOLUTION = size
+		if "VERTICAL_SCALE" in plot_generator:
+			plot_generator.VERTICAL_SCALE = VERTICAL_SCALE
+		if "SLOPE_WORLD_SIZE" in plot_generator:
+			plot_generator.SLOPE_WORLD_SIZE = 512.0
 		print("📐 Set plot size to %dx%d" % [size, size])
 
 func _input(event: InputEvent) -> void:
@@ -425,6 +429,12 @@ func _apply_to_hterrain(height_map: Array, island_mask: Array) -> void:
 	# Notify HTerrain of changes
 	var modified_region = Rect2(0, 0, TERRAIN_SIZE, TERRAIN_SIZE)
 	hterrain_data.notify_region_change(modified_region, HTerrainData.CHANNEL_HEIGHT)
+	# Update collision after procedural height changes
+	if hterrain and hterrain.has_method("get") and hterrain.has_method("set"):
+		if not hterrain.get("collision_enabled"):
+			hterrain.set("collision_enabled", true)
+	if hterrain and hterrain.has_method("update_collider"):
+		hterrain.update_collider()
 	
 	print("✓ Heights applied to HTerrain")
 	

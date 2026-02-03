@@ -127,6 +127,10 @@ var ARCHETYPES = {
 }
 
 @export var GRID_RESOLUTION: int = 16
+@export var BUILDABLE_SLOPE_MAX_DEG: float = 12.0
+@export var SLOPE_LIMIT_PASSES: int = 4
+@export var SLOPE_WORLD_SIZE: float = 512.0
+@export var VERTICAL_SCALE: float = 200.0
 var noise: FastNoiseLite = FastNoiseLite.new()
 var light: DirectionalLight3D
 
@@ -738,6 +742,7 @@ func _generate_height_map(archetype: String, rng: RandomNumberGenerator) -> Arra
 	# Post-processing: Ensure terrain supports buildability
 	# This creates flat buildable core and steep edge mountains
 	height_map = _flatten_buildable_core(height_map, archetype)
+	height_map = _limit_buildable_slopes(height_map, archetype)
 	height_map = _force_edge_mountains(height_map, archetype)
 	
 	# Carve river AFTER post-processing so it cuts through the flattened terrain
@@ -813,6 +818,82 @@ func _flatten_buildable_core(height_map: Array, archetype: String) -> Array:
 				processed_map[z][x] = lerp(original, local_avg, smoothing_strength)
 	
 	return processed_map
+
+
+func _limit_buildable_slopes(height_map: Array, archetype: String) -> Array:
+	"""Limit slopes in the buildable core to BUILDABLE_SLOPE_MAX_DEG.
+
+	This smooths only the interior buildable area until local slopes are below the threshold.
+	"""
+	var archetype_data = ARCHETYPES[archetype]
+	var buildable_ratio = archetype_data.get("buildable_ratio", 0.70)
+
+	var size = height_map.size()
+	if size <= 1:
+		return height_map
+
+	var center = float(size) * 0.5
+	var core_radius = (buildable_ratio * 0.45) * float(size)
+	var transition_width = float(size) * 0.15
+	var grid_spacing = SLOPE_WORLD_SIZE / float(size - 1)
+
+	var processed_map = height_map
+	for _pass in range(SLOPE_LIMIT_PASSES):
+		var next_map = processed_map.duplicate(true)
+		for z in range(size):
+			for x in range(size):
+				var fx = float(x)
+				var fz = float(z)
+				var dx = fx - center
+				var dy = fz - center
+				var dist = sqrt(dx * dx + dy * dy)
+				var influence = 0.0
+				if dist < core_radius:
+					influence = 1.0
+				elif dist < core_radius + transition_width:
+					var t = (dist - core_radius) / transition_width
+					influence = 1.0 - _smoothstep(0.0, 1.0, t)
+				if influence <= 0.05:
+					continue
+
+				var slope = _compute_slope_deg(processed_map, x, z, grid_spacing)
+				if slope <= BUILDABLE_SLOPE_MAX_DEG:
+					continue
+
+				var sum_height = 0.0
+				var count = 0
+				for dz in range(-1, 2):
+					for dx_sample in range(-1, 2):
+						var nx = x + dx_sample
+						var nz = z + dz
+						if nx >= 0 and nx < size and nz >= 0 and nz < size:
+							sum_height += processed_map[nz][nx]
+							count += 1
+				var local_avg = sum_height / float(count) if count > 0 else processed_map[z][x]
+				var original = processed_map[z][x]
+				var excess = clampf((slope - BUILDABLE_SLOPE_MAX_DEG) / BUILDABLE_SLOPE_MAX_DEG, 0.0, 1.0)
+				var strength = minf(0.75, 0.25 + (excess * 0.5)) * influence
+				next_map[z][x] = lerp(original, local_avg, strength)
+		processed_map = next_map
+
+	return processed_map
+
+
+func _compute_slope_deg(height_map: Array, x: int, z: int, grid_spacing: float) -> float:
+	var size = height_map.size()
+	if x <= 0 or x >= size - 1 or z <= 0 or z >= size - 1:
+		return 0.0
+
+	var h_center = height_map[z][x] * VERTICAL_SCALE
+	var h_right = height_map[z][x + 1] * VERTICAL_SCALE
+	var h_left = height_map[z][x - 1] * VERTICAL_SCALE
+	var h_down = height_map[z + 1][x] * VERTICAL_SCALE
+	var h_up = height_map[z - 1][x] * VERTICAL_SCALE
+
+	var dx = (h_right - h_left) * 0.5
+	var dz = (h_down - h_up) * 0.5
+	var gradient = sqrt(dx * dx + dz * dz) / grid_spacing
+	return rad_to_deg(atan(gradient))
 
 
 func _force_edge_mountains(height_map: Array, archetype: String) -> Array:

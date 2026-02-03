@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="BuildingDefinition" format=3 uid="uid://qmc4cbyvdf8l"]
+
+[ext_resource type="Script" uid="uid://bn8d2im3m4rxh" path="res://src/building_system/BuildingDefinition.gd" id="1_jucl5"]
+[ext_resource type="Texture2D" uid="uid://d2v2xk413xch3" path="res://assets/buildings/icons/habitat.png" id="1_smebm"]
+[ext_resource type="PackedScene" uid="uid://bwn1g1ubgln7x" path="res://building_habitat.tscn" id="2_gyjx1"]
+
+[resource]
+script = ExtResource("1_jucl5")
+name = "habitat"
+icon = ExtResource("1_smebm")
+scene = ExtResource("2_gyjx1")
+metadata/_custom_type_script = "uid://bn8d2im3m4rxh"

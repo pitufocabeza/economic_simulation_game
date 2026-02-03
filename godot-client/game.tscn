@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://bpac3yauinvv3"]
+
+[ext_resource type="Script" uid="uid://bjfidqe0e658f" path="res://scripts/isometric_camera.gd" id="1_80nbo"]
+[ext_resource type="PackedScene" uid="uid://8qdi1kixq52y" path="res://Hterrain_3d_test.tscn" id="2_e2o6t"]
+[ext_resource type="Script" uid="uid://brdoipjxynfk0" path="res://src/building_system/PlacementController.gd" id="3_feb5d"]
+[ext_resource type="PackedScene" uid="uid://bynddbjgak4by" path="res://game/buildings/defs/building_control.tscn" id="4_fc0e3"]
+[ext_resource type="Resource" uid="uid://qmc4cbyvdf8l" path="res://game/buildings/defs/habitat.tres" id="5_qncmr"]
+[ext_resource type="Script" uid="uid://bn8d2im3m4rxh" path="res://src/building_system/BuildingDefinition.gd" id="5_ryrav"]
+
+[node name="Node3D" type="Node3D" unique_id=175141866]
+
+[node name="Terrain" parent="." unique_id=1876209208 instance=ExtResource("2_e2o6t")]
+BUILDABLE_SLOPE_MAX = 15.0
+show_buildability_debug = true
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=932883338]
+transform = Transform3D(-0.7071068, 0.49999994, -0.5, 0, 0.7071068, 0.70710677, 0.7071067, 0.50000006, -0.50000006, 0, 300, 0)
+current = true
+script = ExtResource("1_80nbo")
+
+[node name="Buildings" type="Node3D" parent="." unique_id=584907937]
+
+[node name="PlacementController" type="Node3D" parent="." unique_id=1840811017]
+script = ExtResource("3_feb5d")
+hterrain_path = NodePath("../Terrain/HTerrain")
+buildings_root_path = NodePath("../Buildings")
+build_menu = NodePath("../UI/BuildMenu")
+buildability_source_path = NodePath("../Terrain")
+
+[node name="Node3D" type="Node3D" parent="PlacementController" unique_id=640291493]
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=2135166162]
+
+[node name="BuildMenu" parent="UI" unique_id=210467595 instance=ExtResource("4_fc0e3")]
+building_definitions = Array[ExtResource("5_ryrav")]([ExtResource("5_qncmr")])
+
+[editable path="Terrain"]

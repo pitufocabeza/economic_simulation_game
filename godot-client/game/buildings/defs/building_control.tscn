@@ -1,0 +1,28 @@
+[gd_scene format=3 uid="uid://bynddbjgak4by"]
+
+[ext_resource type="Script" uid="uid://dlsoe31kdnx3" path="res://game/buildings/defs/BuildMenu.gd" id="1_6pjjx"]
+
+[node name="Control" type="Control" unique_id=1092004789]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_6pjjx")
+
+[node name="Panel" type="Panel" parent="." unique_id=1873756325]
+layout_mode = 0
+offset_left = 1.0
+offset_top = 1013.0
+offset_right = 661.0
+offset_bottom = 1081.0
+
+[node name="GridContainer" type="GridContainer" parent="Panel" unique_id=157273387]
+layout_mode = 0
+offset_right = 520.0
+offset_bottom = 520.0
+scale = Vector2(0.1, 0.1)
+columns = 4
+
+[node name="Habitat" type="Button" parent="Panel/GridContainer" unique_id=1592087654]
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2

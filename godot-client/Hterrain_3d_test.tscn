@@ -13,7 +13,6 @@
 [ext_resource type="Texture2D" uid="uid://dducsathkp6vd" path="res://assets/materials/slot2_normal_roughness.png" id="10_31qo3"]
 [ext_resource type="Texture2D" uid="uid://dvr700os0iht" path="res://assets/materials/slot3_normal_roughness.png" id="11_hnlla"]
 [ext_resource type="Script" uid="uid://c2pneyqa7jul4" path="res://scenes/temperate_map_generator.gd" id="13_ot7q0"]
-[ext_resource type="Script" uid="uid://qmhoy7m7r668" path="res://scripts/free_fly_camera.gd" id="14_lfy63"]
 
 [sub_resource type="Resource" id="Resource_6taa7"]
 script = ExtResource("3_ot7q0")
@@ -46,10 +45,6 @@ metadata/_custom_type_script = "uid://dy14626vyigno"
 
 [node name="PlotGenerator" type="Node3D" parent="." unique_id=1455387990]
 script = ExtResource("13_ot7q0")
-
-[node name="Camera3D" type="Camera3D" parent="." unique_id=1239170478]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 256, 100, 256)
-script = ExtResource("14_lfy63")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=778635792]
 transform = Transform3D(0.70710677, 0.70710677, 0, -0.49999997, 0.49999997, 0.70710677, 0.49999997, -0.49999997, 0.70710677, 0, 0, 0)
