@@ -268,8 +268,5 @@ func create_sample_planet(biome: String = "Temperate", diameter: float = 10000.0
 	var planet = create_planet(test_data)
 	
 	# Make it unshaded so it's always visible for testing
-	if planet.material_override is StandardMaterial3D:
-		var mat = planet.material_override as StandardMaterial3D
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	
 	return planet

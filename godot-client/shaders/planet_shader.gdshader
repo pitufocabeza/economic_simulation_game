@@ -1,10 +1,10 @@
 shader_type spatial;
+render_mode specular_schlick_ggx, cull_back;
 
 uniform int planet_seed = 12345;
 uniform int biome_type = 0;  // 0=Temperate, 1=Ice, 2=Volcanic, 3=Barren, 4=Oceanic
 uniform float noise_scale = 10.0;
 uniform float height_scale = 90.0;  // Height of terrain features in world units
-const float PI = 3.141592653589793;
 
 // Texture samplers for terrain painting
 uniform sampler2D tex_plains : filter_linear_mipmap, repeat_enable;
@@ -265,9 +265,7 @@ void fragment() {
 	
 	// Combine detail layers with decreasing influence for photorealistic micro-detail
 	// Add color variation based on slope for more realism
-	float slope = abs(h_center - h_right) + abs(h_center - h_up);
 	
-	base_color = mix(base_color * 0.88, base_color * 1.08, detail1);
 	base_color = mix(base_color * 0.93, base_color * 1.04, detail2 * 0.6);
 	base_color = mix(base_color * 0.96, base_color * 1.02, detail3 * 0.4);
 	base_color = mix(base_color * 0.98, base_color * 1.01, detail4 * 0.2);
@@ -282,10 +280,10 @@ void fragment() {
 	// Atmospheric rim lighting
 	vec3 atmosphere_color = vec3(0.3, 0.5, 0.8) * 0.15;
 	float atmosphere = pow(1.0 - edge_factor, 3.0);
-	base_color = mix(base_color, atmosphere_color, atmosphere * 0.3);
+	base_color = mix(base_color, atmosphere_color, atmosphere * 0.8);
 	
 	// Add edge darkening (limb darkening)
-	base_color *= mix(0.1, 1.0, edge_factor);
+	// base_color *= mix(0.1, 1.0, edge_factor);
 
 	// Coral reef patches in shallow ocean: small-scale noise-driven color accents
 	if (biome_type == 4 && elevation > 0.44 && elevation < 0.52) {
@@ -297,53 +295,63 @@ void fragment() {
 	}
 	
 	// Add micro-detail to normals
-	float micro_right = noise3d_seed((obj_normal + offset.xyy) * noise_scale * 32.0, planet_seed + 500);
-	float micro_up = noise3d_seed((obj_normal + offset.yxy) * noise_scale * 32.0, planet_seed + 500);
+	// float micro_right = noise3d_seed((obj_normal + offset.xyy) * noise_scale * 32.0, planet_seed + 500);
+	// float micro_up = noise3d_seed((obj_normal + offset.yxy) * noise_scale * 32.0, planet_seed + 500);
 	
-	vec3 normal_detail = normalize(vec3(
-		(h_center - h_right) + (terrain - micro_right) * 0.3,
-		(h_center - h_up) + (terrain - micro_up) * 0.3,
-		bump_strength
-	));
+	vec3 p = normalize(object_pos);
+	float eps = 0.01;
+
+	float h  = fbm_seed(p * noise_scale, planet_seed);
+	float hx = fbm_seed(normalize(p + vec3(eps,0,0)) * noise_scale, planet_seed);
+	float hy = fbm_seed(normalize(p + vec3(0,eps,0)) * noise_scale, planet_seed);
+	float hz = fbm_seed(normalize(p + vec3(0,0,eps)) * noise_scale, planet_seed);
+
+	vec3 grad = vec3(hx - h, hy - h, hz - h);
+	NORMAL = normalize(p - grad * height_scale * 0.15);
 	
 	// Apply normal in tangent space - reduced strength to prevent line artifacts
-	NORMAL = normalize(NORMAL + normal_detail * 0.2);
+	// NORMAL = normalize(NORMAL + normal_detail * 0.08);
 	
 	// Calculate Fresnel effect for realistic reflections
 	float fresnel = pow(1.0 - max(0.0, dot(normalize(VIEW), normalize(NORMAL))), 3.0);
 	
 	// Material properties based on terrain type
-	float roughness = 0.85;
+	float roughness = 0.92;
 	float metallic = 0.0;
-	float specular = 0.1;
+	float specular = 0.05;
 	float anisotropy = 0.0;
 	
 	// Water and ice use Fresnel - more reflective at grazing angles
 	if (biome_type == 0 && elevation < 0.42) {  // Temperate water
-		roughness = 0.35;
-		specular = mix(0.08, 0.25, fresnel);
+		roughness = 0.48;
+		specular = mix(0.04, 0.12, fresnel);
 		anisotropy = 0.05;  // Slight directional reflection
 		// Add subsurface scattering effect for water
 		base_color = mix(base_color, base_color * vec3(0.8, 0.95, 1.0), 0.15);
 	} else if (biome_type == 1) {  // Ice world
-		roughness = 0.45;
-		specular = mix(0.1, 0.3, fresnel);
-		// Ice subsurface scattering
-		base_color = mix(base_color, base_color * vec3(0.9, 0.95, 1.0), 0.1);
+		roughness = 0.78;
+		specular = mix(0.02, 0.08, fresnel);
+		// Ice subsurface scattering (subtle)
+		base_color = mix(base_color, base_color * vec3(0.9, 0.95, 1.0), 0.08);
 	} else if (biome_type == 2 && elevation < 0.38) {  // Volcanic lava
-		roughness = 0.38;
-		specular = 0.18;
+		roughness = 0.55;
+		specular = clamp(specular, 0.03, 0.10);
 		// Controlled lava glow with pulsing effect (toned down to avoid overpowering)
 		float glow_variation = noise3d_seed(obj_normal * 3.0, planet_seed + 999) * 0.5 + 0.5;
 		vec3 lava_tint = mix(vec3(1.0, 0.45, 0.12), vec3(1.0, 0.65, 0.2), glow_variation);
 		// Lower base emission multiplier and add slight warm tint
 		EMISSION = lava_tint * (0.25 + glow_variation * 0.25);
 	} else if (biome_type == 4 && elevation < 0.54) {  // Oceanic water
-		roughness = 0.35;
-		specular = mix(0.08, 0.25, fresnel);
+		roughness = 0.48;
+		specular = mix(0.04, 0.12, fresnel);
 		anisotropy = 0.05;
 		base_color = mix(base_color, base_color * vec3(0.8, 0.95, 1.0), 0.15);
+	} else {
+		// Non-water terrain: keep specular low to avoid sparkles
+		specular = 0.02;
 	}
+	roughness = clamp(roughness, 0.55, 0.98);
+	specular = clamp(specular, 0.01, 0.18);
 	
 	ALBEDO = base_color;
 	ROUGHNESS = roughness;

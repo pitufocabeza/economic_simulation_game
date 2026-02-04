@@ -27,16 +27,10 @@ ssil_enabled = true
 ssil_radius = 8.0
 ssil_intensity = 2.0
 ssil_sharpness = 1.0
-ssil_normal_rejection = 1.0
 sdfgi_enabled = true
 sdfgi_use_occlusion = true
-sdfgi_read_sky_light = true
 sdfgi_bounce_feedback = 0.8
 sdfgi_cascades = 6
-sdfgi_min_cell_size = 0.1
-sdfgi_cascade0_distance = 12.8
-sdfgi_max_distance = 819.2
-sdfgi_y_scale = 1
 sdfgi_energy = 1.2
 glow_enabled = true
 glow_levels/1 = 0.5
@@ -53,12 +47,7 @@ glow_hdr_scale = 1.5
 volumetric_fog_enabled = true
 volumetric_fog_density = 0.001
 volumetric_fog_albedo = Color(0.2, 0.25, 0.35, 1)
-volumetric_fog_emission = Color(0, 0, 0, 1)
 volumetric_fog_emission_energy = 0.0
-volumetric_fog_anisotropy = 0.2
-volumetric_fog_length = 64.0
-volumetric_fog_detail_spread = 2.0
-volumetric_fog_gi_inject = 1.0
 volumetric_fog_ambient_inject = 0.5
 adjustment_enabled = true
 adjustment_brightness = 1.08
@@ -68,7 +57,6 @@ adjustment_saturation = 1.08
 [sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_1"]
 
 [node name="PlanetTest" type="Node3D" unique_id=761181244]
-transform = Transform3D(1, 0, 0, 0, 0.9997926, 0.020366585, 0, -0.020366585, 0.9997926, 0, 0, -0.06332719)
 script = ExtResource("1_planet_test")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=182575889]
@@ -77,7 +65,6 @@ environment = SubResource("Environment_1")
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1150349546]
 transform = Transform3D(0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866025, -8400, 0, 9700)
 attributes = SubResource("CameraAttributesPractical_1")
-fov = 75.0
 near = 0.5
 far = 50000.0
 
@@ -89,17 +76,13 @@ light_indirect_energy = 1.5
 light_volumetric_fog_energy = 2.0
 shadow_enabled = true
 shadow_bias = 0.05
-shadow_normal_bias = 2.0
 shadow_blur = 3.0
-directional_shadow_mode = 2
 directional_shadow_split_1 = 0.05
-directional_shadow_split_2 = 0.2
-directional_shadow_split_3 = 0.5
 directional_shadow_blend_splits = true
-directional_shadow_fade_start = 0.8
 directional_shadow_max_distance = 50000.0
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=650962779]
+visible = false
 
 [node name="Label" type="Label" parent="UI" unique_id=299719075]
 offset_left = 10.0

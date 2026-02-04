@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bo6xumafhete7"]
+
+[ext_resource type="Script" uid="uid://c2hx3btb3p7oj" path="res://scenes/planet_test.gd" id="1_57qqk"]
+
+[node name="PlanetGenerator" type="Node3D" unique_id=761181244]
+script = ExtResource("1_57qqk")
