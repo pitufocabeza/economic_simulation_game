@@ -14,7 +14,7 @@ sky_material = SubResource("PanoramaSkyMaterial_2fv83")
 background_mode = 2
 sky = SubResource("Sky_5xuko")
 ambient_light_source = 2
-ambient_light_color = Color(0.7093375, 0.75140357, 0.81833667, 1)
+ambient_light_color = Color(0.03137255, 0.043137256, 0.0627451, 1)
 ambient_light_energy = 0.03
 tonemap_mode = 3
 glow_enabled = true
@@ -28,6 +28,7 @@ glow_map_strength = 0.73
 
 [node name="SystemView" type="Node3D" unique_id=2046693635]
 script = ExtResource("1_detro")
+planet_count = 6
 seed = 2873762
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=240026437]

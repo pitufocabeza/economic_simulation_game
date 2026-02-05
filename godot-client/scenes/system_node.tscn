@@ -1,0 +1,24 @@
+[gd_scene format=3 uid="uid://de7ic1v8e0n7b"]
+
+[ext_resource type="Script" uid="uid://bx1yy4pcne86g" path="res://system_node.gd" id="1_ogubk"]
+[ext_resource type="Texture2D" uid="uid://bocdrmcau4gym" path="res://assets/textures/star_icon.png" id="2_xitrk"]
+[ext_resource type="Texture2D" uid="uid://c5aaphcn1p3i4" path="res://assets/textures/selection_ring.png" id="3_upw2j"]
+
+[node name="SystemNode" type="Node2D" unique_id=1279124792]
+script = ExtResource("1_ogubk")
+
+[node name="Glow" type="Sprite2D" parent="." unique_id=1302304565]
+
+[node name="StarIcon" type="Sprite2D" parent="." unique_id=1352045577]
+texture = ExtResource("2_xitrk")
+
+[node name="SelectionRing" type="Sprite2D" parent="." unique_id=1689320017]
+texture = ExtResource("3_upw2j")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=1190584147]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=462230267]
+
+[node name="Label" type="Label" parent="." unique_id=1480507626]
+offset_right = 40.0
+offset_bottom = 23.0

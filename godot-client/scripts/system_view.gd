@@ -1,19 +1,20 @@
 extends Node3D
 
+@onready var camera := $"orbital camera"
 @onready var planet_generator := PlanetGenerator.new()
 const PlanetMotion := preload("res://scripts/PlanetMotion.gd")
-@export var planet_count: int = 3
+@export var planet_count: int = 0
 @export var seed: int = 12345
-
+var system_radius: float = 0.0
 @export var biomes := ["Temperate", "Ice", "Volcanic", "Barren", "Oceanic"]
 var planet_shader = preload("res://shaders/planet_shader.gdshader")
 
-const AU := 5000.0
-const ORBIT_CLEARANCE := 5000.0
-const ORBIT_SPACING_MULTIPLIER := 4.0
+const AU := 500.0
+const ORBIT_CLEARANCE := 500.0
+const ORBIT_SPACING_MULTIPLIER := 3.0
 
-const PLANET_RADIUS_MIN := 3000.0
-const PLANET_RADIUS_MAX := 7000.0
+const PLANET_RADIUS_MIN := 300.0
+const PLANET_RADIUS_MAX := 700.0
 
 const MIN_ORBIT_AU := 10.0
 const HZ_MIN_AU := 0.95
@@ -24,20 +25,32 @@ const ICE_MAX_AU := 6.0
 var star_radius: float
 var current_orbit: float = 0.0
 var largest_planet_radius: float = 0.0
+var star: Node3D
 
 func _ready():
 	randomize()
 	add_child(planet_generator)
-	generate_system()
 
 # ----------------------------------------------------
 # SYSTEM GENERATION
 # ----------------------------------------------------
+var star_data: StarData
 
-func generate_system():
+func setup_from_star(data: StarData) -> void:
+	star_data = data
+	seed = data.system_seed
+	generate_system(data)
+	system_radius *= 1.2 # padding
+	
+	camera.frame_radius(system_radius)
+
+func generate_system(data: StarData) -> void:
+	print("Generating system with seed:", data.system_seed)
+	star_data = data
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
-
+	planet_count = rng.randi_range(4,7)
+	rng.seed = data.system_seed
+	
 	# --- Pre-roll planet sizes to determine star radius
 	var planet_defs := []
 	for i in planet_count:
@@ -52,7 +65,7 @@ func generate_system():
 		})
 
 	# --- Compute star radius
-	star_radius = clamp(largest_planet_radius * 12.0, 8000.0, 20000.0)
+	star_radius = clamp(largest_planet_radius * 12.0, 800.0, 2000.0)
 
 	create_star()
 	create_planets(planet_defs, rng)
@@ -119,7 +132,14 @@ func create_planets(planets: Array, rng):
 		orbit_node.add_child(planet)
 
 		# Place planet at orbit distance
-		planet.position = Vector3(p["orbit_units"], 0, 0)
+		var orbit_radius: float = p["orbit_units"]
+		var angle: float = rng.randf_range(0.0, TAU)
+
+		var x: float = cos(angle) * orbit_radius
+		var z: float = sin(angle) * orbit_radius
+		var y: float = rng.randf_range(-50.0, 50.0) # tiny inclination
+
+		planet.position = Vector3(x, y, z)
 
 		# Add motion controller
 		var motion: Node3D = PlanetMotion.new()
@@ -129,7 +149,13 @@ func create_planets(planets: Array, rng):
 		motion.setup(orbit_node, planet)
 		
 		orbit_node.add_child(motion)
-
+		
+		var orbit_line := preload("res://scripts/orbit_line.gd").new()
+		orbit_line.radius = p["orbit_units"]
+		orbit_line.name = "OrbitLine_%s" % p["biome"]
+		star.add_child(orbit_line)
+		
+		system_radius = max(system_radius, orbit_radius, p["radius"])
 
 
 # ----------------------------------------------------
@@ -137,6 +163,10 @@ func create_planets(planets: Array, rng):
 # ----------------------------------------------------
 
 func create_star():
+	star = Node3D.new()
+	star.name = "Sol"
+	add_child(star)
+	
 	var photosphere := MeshInstance3D.new()
 
 	var mesh := SphereMesh.new()
@@ -174,7 +204,7 @@ func create_star():
 	chromo_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 	chromo.material_override = chromo_mat
-	add_child(chromo)
+	star.add_child(chromo)
 
 	# Corona
 	var corona := MeshInstance3D.new()
@@ -194,13 +224,13 @@ func create_star():
 	corona_mat.albedo_color = Color(0, 0, 0, 0)
 
 	corona.material_override = corona_mat
-	add_child(corona)
+	star.add_child(corona)
 
 	# Light
 	var sun_light := OmniLight3D.new()
-	sun_light.light_energy = 6.0
+	sun_light.light_energy = 8.0
 	sun_light.omni_range = current_orbit + 5000000
 	sun_light.shadow_enabled = true
 	sun_light.position = Vector3(0, 0, 0)
-	sun_light.omni_attenuation = 0.3
-	add_child(sun_light)
+	sun_light.omni_attenuation = 0.2
+	star.add_child(sun_light)

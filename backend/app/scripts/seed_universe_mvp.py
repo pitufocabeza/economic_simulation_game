@@ -19,6 +19,11 @@ RARE_ORE_TABLE = {
     "Volcanic":  {"Poor": 8000, "Normal": 10000, "Rich": 14000},
 }
 
+
+# def map_nodes(nodes):
+# map_nodes(id, node_type, system_id nullable, x, y, metadata jsonb)
+# map_edges(id, from_node, to_node, edge_type, base_cost, risk)
+
 def generate_deposits(planet):
     deposits = []
 
@@ -47,7 +52,7 @@ def generate_deposits(planet):
         deposits.append({
             "resource": "Biomass",
             "richness": "Normal",
-            "amount": random.randint(15_000, 30_000)
+            "amount": random.randint(15000, 30000)
         })
 
     return deposits
@@ -57,7 +62,7 @@ def generate_planet():
     planet = {
         "id": str(uuid.uuid4()),
         "biome": biome,
-        "radius": random.randint(3000, 7000),
+        "radius": random.randint(300, 700),
     }
     planet["deposits"] = generate_deposits(planet)
     return planet
@@ -69,6 +74,7 @@ def generate_region(region_type, name):
     for i in range(system_count):
         system = {
             "id": str(uuid.uuid4()),
+            "owned_id": str(uuid.uuid4()) if region_type == "Faction" else None,
             "name": f"{name}-SYS-{i+1}",
             "region_type": region_type,
             "planets": [generate_planet() for _ in range(random.randint(4, 7))]

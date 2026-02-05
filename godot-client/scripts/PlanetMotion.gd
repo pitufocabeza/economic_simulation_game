@@ -1,8 +1,8 @@
 extends Node3D
 class_name PlanetMotion
 
-@export var orbit_speed: float = 0.05
-@export var spin_speed: float = 0.25
+@export var orbit_speed: int = 0
+@export var spin_speed: float = 0.05
 
 var orbit_node: Node3D
 var planet_body: Node3D
