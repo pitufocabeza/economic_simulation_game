@@ -5,13 +5,16 @@ extends Node3D
 const PlanetMotion := preload("res://scripts/PlanetMotion.gd")
 @export var planet_count: int = 0
 @export var seed: int = 12345
+var generated_root: Node3D
 var system_radius: float = 0.0
 @export var biomes := ["Temperate", "Ice", "Volcanic", "Barren", "Oceanic"]
 var planet_shader = preload("res://shaders/planet_shader.gdshader")
 
+const SYSTEM_EXIT_DISTANCE_FACTOR := 1.15
 const AU := 500.0
 const ORBIT_CLEARANCE := 500.0
 const ORBIT_SPACING_MULTIPLIER := 3.0
+const SYSTEM_PAN_PADDING := 1.0
 
 const PLANET_RADIUS_MIN := 300.0
 const PLANET_RADIUS_MAX := 700.0
@@ -26,30 +29,111 @@ var star_radius: float
 var current_orbit: float = 0.0
 var largest_planet_radius: float = 0.0
 var star: Node3D
+var baseline_zoom: float
+var exit_zoom: float
+var exit_armed := false
+var exiting := false
+const EXIT_FACTOR := 1.35
+
+var corona: MeshInstance3D
+var sun_light: OmniLight3D
+var pan_limit_radius: float
 
 func _ready():
-	randomize()
 	add_child(planet_generator)
+	
+	generated_root = Node3D.new()
+	generated_root.name = "Generated"
+	add_child(generated_root)
+
+func _process(_delta):
+	if exiting:
+		return
+	if ViewTransition.current_view != ViewTransition.ViewMode.SYSTEM:
+		return
+	if ViewTransition.transitioning:
+		return
+	if not is_instance_valid(camera):
+		return
+	
+	_update_star_emission()
+	# Arm exit only after zooming IN
+	if not exit_armed:
+		if camera.zoom < baseline_zoom * 0.9:
+			exit_armed = true
+		return
+
+	# Exit when zoomed out as far as the camera allows
+	if camera.zoom >= camera.max_distance:
+		exit_armed = false
+		ViewTransition.exit_system()
+
+func _update_star_emission():
+	if not is_instance_valid(camera) or not is_instance_valid(star):
+		return
+
+	var dist_t: float = clamp(
+		inverse_lerp(baseline_zoom, camera.max_distance, camera.zoom),
+		0.0,
+		1.0
+	)
+
+	# Angle-based attenuation
+	var view_dir: Vector3 = (camera.global_position - star.global_position).normalized()
+	var normal_dir: Vector3 = (star.global_position - camera.global_position).normalized()
+	var facing: float = abs(view_dir.dot(normal_dir))
+	facing = pow(facing, 2.5)
+
+	# Corona glow
+	if corona and corona.material_override:
+		corona.material_override.emission_energy_multiplier = lerp(
+			0.04,
+			0.004,
+			dist_t
+		) * facing
+
+	# Star light
+	if sun_light:
+		sun_light.light_energy = lerp(3.0, 1.0, dist_t) * facing
+
 
 # ----------------------------------------------------
 # SYSTEM GENERATION
 # ----------------------------------------------------
 var star_data: StarData
 
+func _on_view_changed(new_view):
+	if new_view == ViewTransition.ViewMode.MAP:
+		queue_free() # or hide, depending on your setup
+		camera.pan_limit_enabled = false
+
 func setup_from_star(data: StarData) -> void:
+	for c in generated_root.get_children():
+		c.queue_free()
+	
 	star_data = data
-	seed = data.system_seed
 	generate_system(data)
 	system_radius *= 1.2 # padding
 	
+	pan_limit_radius = system_radius * SYSTEM_PAN_PADDING
 	camera.frame_radius(system_radius)
+	camera.pan_limit_enabled = true
+	camera.pan_limit_radius = pan_limit_radius
+	await get_tree().create_timer(0.95).timeout
+
+	baseline_zoom = camera.zoom
+	camera.max_distance = max(camera.max_distance, baseline_zoom * 2.0)
+	exit_zoom =  baseline_zoom * SYSTEM_EXIT_DISTANCE_FACTOR
+	exit_armed = false
 
 func generate_system(data: StarData) -> void:
 	print("Generating system with seed:", data.system_seed)
 	star_data = data
 	var rng := RandomNumberGenerator.new()
-	planet_count = rng.randi_range(4,7)
 	rng.seed = data.system_seed
+	
+	planet_count = rng.randi_range(4,7)
+
 	
 	# --- Pre-roll planet sizes to determine star radius
 	var planet_defs := []
@@ -74,20 +158,20 @@ func generate_system(data: StarData) -> void:
 # ORBIT LOGIC
 # ----------------------------------------------------
 
-func pick_orbit_au_for_biome(biome: String) -> float:
+func pick_orbit_au_for_biome(biome: String, rng: RandomNumberGenerator) -> float:
 	match biome:
 		"Temperate":
-			return randf_range(HZ_MIN_AU, HZ_MAX_AU)
+			return rng.randf_range(HZ_MIN_AU, HZ_MAX_AU)
 		"Volcanic":
-			return randf_range(0.3, 0.8)
+			return rng.randf_range(0.3, 0.8)
 		"Ice":
-			return randf_range(ICE_MIN_AU, ICE_MAX_AU)
+			return rng.randf_range(ICE_MIN_AU, ICE_MAX_AU)
 		"Oceanic":
-			return randf_range(0.8, 2.5)
+			return rng.randf_range(0.8, 2.5)
 		"Barren":
-			return randf_range(0.4, 3.5)
+			return rng.randf_range(0.4, 3.5)
 		_:
-			return randf_range(1.0, 3.0)
+			return rng.randf_range(1.0, 3.0)
 
 func compute_safe_orbit(desired_au: float, planet_radius: float) -> float:
 	var desired_units = desired_au * AU
@@ -116,7 +200,7 @@ func create_planets(planets: Array, rng):
 		if planet == null:
 			continue
 		
-		var desired_au := pick_orbit_au_for_biome(p["biome"])
+		var desired_au := pick_orbit_au_for_biome(p["biome"], rng)
 		var orbit := compute_safe_orbit(desired_au, p["radius"])
 
 		# biome minimum AU (keeps ice worlds away from the star)
@@ -165,72 +249,35 @@ func create_planets(planets: Array, rng):
 func create_star():
 	star = Node3D.new()
 	star.name = "Sol"
-	add_child(star)
+	generated_root.add_child(star)
 	
 	var photosphere := MeshInstance3D.new()
-
 	var mesh := SphereMesh.new()
 	mesh.radius = star_radius
 	mesh.height = star_radius * 2.0
-	mesh.radial_segments = 256
-	mesh.rings = 128
+	mesh.radial_segments = 64  # Lower = better perf/distance
+	mesh.rings = 32
 	photosphere.mesh = mesh
-
+	
 	var star_shader := load("res://assets/shaders/star.gdshader") as Shader
 	var mat := ShaderMaterial.new()
 	mat.shader = star_shader
 	mat.set_shader_parameter("sun_texture", preload("res://assets/textures/8k_sun.jpg"))
-	mat.set_shader_parameter("emission_strength", 1.2)
+	mat.set_shader_parameter("emission_strength", 0.15)
 	mat.set_shader_parameter("speed", 0.02)
 	mat.set_shader_parameter("distortion", 0.03)
-
-	photosphere.set_surface_override_material(0, mat)
+	
+	photosphere.material_override = mat  # Override, not surface
 	photosphere.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(photosphere)
-
-	# Chromosphere
-	var chromo := MeshInstance3D.new()
-	var cm := SphereMesh.new()
-	cm.radius = star_radius * 1.01
-	cm.height = star_radius * 2.02
-	chromo.mesh = cm
-
-	var chromo_mat := StandardMaterial3D.new()
-	chromo_mat.emission_enabled = true
-	chromo_mat.emission = Color(1.0, 0.3, 0.15)
-	chromo_mat.emission_energy_multiplier = 2.0
-	chromo_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	chromo_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	chromo_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-
-	chromo.material_override = chromo_mat
-	star.add_child(chromo)
-
-	# Corona
-	var corona := MeshInstance3D.new()
-	var com := SphereMesh.new()
-	com.radius = star_radius * 1.5
-	com.height = star_radius * 2.6
-	corona.mesh = com
-
-	var corona_mat := StandardMaterial3D.new()
-	corona_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	corona_mat.emission_enabled = true
-	corona_mat.emission = Color(1,1,1)
-	corona_mat.emission_energy_multiplier = 0.03
-	corona_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	corona_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	corona_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	corona_mat.albedo_color = Color(0, 0, 0, 0)
-
-	corona.material_override = corona_mat
-	star.add_child(corona)
-
+	
+	# KEY FIXES - REAL 3D SPHERE
+	photosphere.lod_bias = 0.5  # Medium bias - keeps detail without perf hit
+	star.add_child(photosphere)
+	
 	# Light
-	var sun_light := OmniLight3D.new()
+	sun_light = OmniLight3D.new()
 	sun_light.light_energy = 8.0
 	sun_light.omni_range = current_orbit + 5000000
-	sun_light.shadow_enabled = true
-	sun_light.position = Vector3(0, 0, 0)
-	sun_light.omni_attenuation = 0.2
 	star.add_child(sun_light)
+
+	print("STAR children:", star.get_child_count(), "Generated children:", generated_root.get_child_count())

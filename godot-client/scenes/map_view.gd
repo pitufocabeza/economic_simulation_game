@@ -5,15 +5,15 @@ var entering_system := false
 @onready var lane_layer := $HyperlaneLayer
 @onready var camera := $Camera2D
 
-const ZOOM_MIN := 120.0
-const ZOOM_SYSTEM := 220.0
-const ZOOM_REGION := 600.0
-const ZOOM_GALAXY := 1400.0
-const ZOOM_MAX := 2200.0
+const ZOOM_MIN := 0.4
+const ZOOM_SYSTEM := 1.2
+const ZOOM_REGION := 0.8
+const ZOOM_GALAXY := 0.4
+const ZOOM_MAX := 2.0
 
-const SYSTEM_ENTER_ZOOM := 160.0
+const SYSTEM_ENTER_ZOOM := 1.8
 
-
+var lane_pulse_time := 0
 var selected_star: StarData
 var last_click_time := 0.0
 const DOUBLE_CLICK_TIME := 0.3
@@ -53,20 +53,34 @@ const DUMMY_GALAXY := {
 
 func _ready():
 	build_map(DUMMY_GALAXY)
+	camera.zoom = Vector2.ONE * ZOOM_GALAXY
 	ViewTransition.register_map(self, $Camera2D)
 	center_camera()
 	
-func _process(delta: float) -> void:
-	_handle_keyboard_pan(delta)
+	ViewTransition.view_changed.connect(_on_view_changed)
 
+func _on_view_changed(new_view):
+	if new_view == ViewTransition.ViewMode.MAP:
+		entering_system = false
+
+func _process(delta: float) -> void:
+	if ViewTransition.current_view != ViewTransition.ViewMode.MAP:
+		return
+	if ViewTransition.transitioning:
+		return
+		
+	_handle_keyboard_pan(delta)
+	# print("VIEW:", ViewTransition.current_view, "TRANS:", ViewTransition.transitioning)
+	# print(camera.zoom)
+	lane_pulse_time += delta *0.6
 	var z: float = camera.zoom.x
 
 	_update_lane_style(z)
 	_update_system_style(z)
 
-	if z >= ZOOM_GALAXY:
+	if z <= ZOOM_GALAXY:
 		set_galaxy_overview()
-	elif z >= ZOOM_REGION:
+	elif z <= ZOOM_REGION:
 		set_region_view()
 	else:
 		set_system_focus_view()
@@ -74,14 +88,27 @@ func _process(delta: float) -> void:
 	if z >= SYSTEM_ENTER_ZOOM and selected_star and not entering_system:
 		entering_system = true
 		ViewTransition.enter_system(selected_star)
+		
+	if entering_system:
+		return
 
 func _update_lane_style(z: float) -> void:
+	var t: float = clamp((z - ZOOM_SYSTEM) / (ZOOM_GALAXY - ZOOM_SYSTEM), 0.0, 1.0)
+	
+	# Pulse goes from 0.85 to 1.15
+	var pulse: float = 0.85 + sin(lane_pulse_time) * 0.15
+	
 	for lane in lane_layer.get_children():
-		# Lanes are strongest at galaxy scale
-		lane.modulate.a = clamp(1.4 - (z / 800.0), 0.1, 0.9)
+		var lane_type: String = lane.get_meta("lane_type")
 
-		# Thicker when zoomed out
-		lane.width = lerp(2.0, 4.0, clamp(z / ZOOM_GALAXY, 0.0, 1.0))
+		if lane_type == "glow":
+			lane.modulate.a = lerp(0.05, 0.35, t) * pulse
+			lane.width = lerp(3.0, 7.0, t)
+
+		elif lane_type == "core":
+			lane.modulate.a = lerp(0.15, 0.9, t)
+			lane.width = lerp(1.0, 2.5, t)
+
 
 func _update_system_style(z: float) -> void:
 	for node in systems.values():
@@ -128,8 +155,12 @@ func build_map(data: Dictionary):
 			systems[lane.to].position
 		)
 
+
 func draw_lane(a: Vector2, b: Vector2):
 	var curve := Curve2D.new()
+	var mat := CanvasItemMaterial.new()
+	
+	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 
 	var mid := (a + b) * 0.5
 	var offset := (b - a).orthogonal().normalized() * randf_range(-80, 80)
@@ -138,18 +169,47 @@ func draw_lane(a: Vector2, b: Vector2):
 	curve.add_point(mid + offset)
 	curve.add_point(b)
 
-	var line := Line2D.new()
-	line.width = 3.0
-	line.default_color = Color(0.5, 0.7, 1.0, 0.6)
-	line.z_index = -10
+	
+	# --- GLOW LINE ----
+	var glow := Line2D.new()
+	glow.width = 6.0
+	glow.default_color = Color(0.5, 0.7, 1.0, 0.25)
+	glow.z_index = -20
+	glow.antialiased = true
 
-	const SEGMENTS := 24
-	for i in SEGMENTS + 1:
-		var t := float(i) / SEGMENTS
-		line.add_point(curve.sample_baked(t))
+	# --- CORE LINE ---
+	var core := Line2D.new()
+	core.width = 2.0
+	core.default_color = Color(0.7, 0.9, 1.0, 0.85)
+	core.z_index = -10
+	core.antialiased = true
+	
+	var hue_shift := randf_range(-0.03, 0.03)
+	glow.default_color = Color.from_hsv(
+		glow.default_color.h + hue_shift,
+		glow.default_color.s,
+		glow.default_color.v,
+		glow.default_color.a
+	)
+	core.default_color = Color.from_hsv(
+		core.default_color.h + hue_shift,
+		core.default_color.s,
+		core.default_color.v,
+		core.default_color.a
+	)
 
-	lane_layer.add_child(line)
+	for c in curve.get_baked_points():
+		core.add_point(c)
+		
+	for g in curve.get_baked_points():
+		glow.add_point(g)
+		
+	
+	lane_layer.add_child(core)
+	lane_layer.add_child(glow)
 
+	glow.set_meta("lane_type", "glow")
+	core.set_meta("lane_type", "core")
 
 func center_camera():
 	camera.position = Vector2.ZERO
@@ -161,7 +221,7 @@ func _on_system_selected(star_data: StarData):
 	for node in systems.values():
 		node.set_selected(node.star_data == star_data)
 
-func _handle_keyboard_pan(delta: float) -> void:
+func _handle_keyboard_pan(_delta: float) -> void:
 	var input: Vector2 = Vector2.ZERO
 	if Input.is_action_pressed("ui_left"):
 		input.x -= 1.0
@@ -175,9 +235,9 @@ func _handle_keyboard_pan(delta: float) -> void:
 func _unhandled_input(event):
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			camera.zoom *= 0.9
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			camera.zoom *= 1.1
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			camera.zoom *= 0.9
 
 	camera.zoom.x = clamp(camera.zoom.x, ZOOM_MIN, ZOOM_MAX)
 	camera.zoom.y = camera.zoom.x

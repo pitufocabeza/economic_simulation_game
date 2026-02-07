@@ -1,6 +1,0 @@
-[gd_scene format=3 uid="uid://ccd8oxrnxofxf"]
-
-[ext_resource type="Script" uid="uid://bkie2itla57cu" path="res://scenes/test_scene_setup.gd" id="1_vek6c"]
-
-[node name="plot_test_scence" type="Node3D" unique_id=1850256130]
-script = ExtResource("1_vek6c")

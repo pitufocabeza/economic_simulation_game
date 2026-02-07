@@ -11,7 +11,8 @@ extends Camera3D
 @export var pitch: float = 40.0
 @export var min_pitch: float = 20.0
 @export var max_pitch: float = 75.0
-
+@export var pan_limit_enabled := false
+@export var pan_limit_radius := 0.0
 @export var rotate_speed: float = 0.25
 @export var pan_speed: float = 20.0
 @export var key_rotate_speed: float = 90.0 # degrees/sec
@@ -67,6 +68,18 @@ func _process(delta: float) -> void:
 	_handle_keyboard_pan(delta)
 	_handle_keyboard_rotation(delta)
 	_update_camera_transform()
+	
+	_clamp_target()
+
+func _clamp_target() -> void:
+	if not pan_limit_enabled:
+		return
+	if pan_limit_radius <= 0.0:
+		return
+
+	var dist := target.length()
+	if dist > pan_limit_radius:
+		target = target.normalized() * pan_limit_radius
 
 
 # -----------------------------

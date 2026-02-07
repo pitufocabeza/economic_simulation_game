@@ -1,4 +1,5 @@
 extends Node
+@export var nebula_layer: Control = null
 
 # Scenes
 const SYSTEM_SCENE := preload("res://system_view.tscn")
@@ -11,24 +12,53 @@ var system_camera: Camera3D
 
 # State
 var active_star: StarData
+var active_star_id: int = -1
 var transitioning := false
 
 # Tuning
 const MAP_ZOOM_ENTER := 0.18
 const MAP_ZOOM_EXIT  := 0.22
+const MAP_RETURN_ZOOM := 0.25
 
 # Fade
 var fade_layer: CanvasLayer
 var fade_rect: ColorRect
 
+enum ViewMode {
+	MAP,
+	SYSTEM
+}
+
+var current_view: ViewMode = ViewMode.MAP
+
+signal view_changed(new_view: ViewMode)
 
 func _ready():
 	_create_fade_layer()
+	ViewTransition.view_changed.connect(_on_view_changed)
 
+func _on_view_changed(new_view):
+	if new_view == ViewTransition.ViewMode.MAP:
+		_show_map_view()
+
+func _show_map_view():
+	pass
+	# enable input, camera, etc
 
 # ---------------------------------------------------
 # PUBLIC API (called by MapView / SystemView)
 # ---------------------------------------------------
+func register_nebula(layer: Control) -> void:
+	nebula_layer = layer
+	
+	# Ensure correct visibility based on current view
+		
+func clear_nebula(layer: Control) -> void:
+	if nebula_layer == layer:
+		nebula_layer = null
+		
+func _emit_view_changed() -> void:
+	view_changed.emit(current_view)
 
 func register_map(map: Node, camera: Camera2D) -> void:
 	map_view = map
@@ -38,9 +68,16 @@ func register_map(map: Node, camera: Camera2D) -> void:
 func enter_system(star: StarData) -> void:
 	if transitioning:
 		return
-
+	if system_view != null:
+		return
+	
+	if current_view == ViewMode.SYSTEM and active_star_id == star.id:
+		return
+		
 	transitioning = true
+	current_view = ViewMode.SYSTEM
 	active_star = star
+	active_star_id = star.id
 
 	await _fade_out()
 
@@ -56,20 +93,33 @@ func exit_system() -> void:
 		return
 
 	transitioning = true
-
+	
 	await _fade_out()
 
+	# Tear down system view
 	if system_view:
+		system_view.set_process(false)
 		system_view.queue_free()
 		system_view = null
 		system_camera = null
 
+	active_star_id = -1
+	current_view = ViewMode.MAP
+	
+	# Restore map view
 	if map_view:
 		map_view.visible = true
+
+	if map_camera:
 		map_camera.enabled = true
+		# IMPORTANT: reset zoom WHILE transitioning is true
+		map_camera.zoom = Vector2.ONE * (MAP_ZOOM_EXIT + 0.10)
+
+	_emit_view_changed()
 
 	await _fade_in()
 
+	# ONLY NOW re-enable logic
 	transitioning = false
 
 
@@ -91,20 +141,6 @@ func _load_system_view() -> void:
 
 	# Cache camera
 	system_camera = system_view.get_node("orbital camera")
-
-	# Align camera zoom
-	_align_system_camera()
-
-
-func _align_system_camera() -> void:
-	var t := inverse_lerp(0.05, MAP_ZOOM_ENTER, map_camera.zoom.x)
-	t = clamp(t, 0.0, 1.0)
-
-	system_camera.zoom = lerp(
-		system_camera.max_distance,
-		system_camera.min_distance,
-		t
-	)
 
 
 # ---------------------------------------------------

@@ -1,6 +1,25 @@
 [gd_scene format=3 uid="uid://csfp1oe8l8oao"]
 
 [ext_resource type="Script" uid="uid://ba6vouyonpt1b" path="res://scenes/map_view.gd" id="1_d7fhi"]
+[ext_resource type="Script" uid="uid://bnhjwi5eyv21v" path="res://scenes/nebula_layer.gd" id="2_8fogj"]
+[ext_resource type="Shader" uid="uid://dao24r57lm4kb" path="res://scenes/map_view.gdshader" id="2_r3vtn"]
+[ext_resource type="Texture2D" uid="uid://dmxx1ys1caksr" path="res://assets/textures/HDR_multi_nebulae_1.hdr" id="3_r3vtn"]
+[ext_resource type="Script" uid="uid://cj5gkr235flgp" path="res://scenes/background.gd" id="3_rbgxb"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8fogj"]
+shader = ExtResource("2_r3vtn")
+shader_parameter/scroll_speed = Vector2(0.002, 0.001)
+shader_parameter/intensity = 1.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bps53"]
+shader = ExtResource("2_r3vtn")
+shader_parameter/scroll_speed = Vector2(0.001, 0.003)
+shader_parameter/intensity = 1.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_adhmk"]
+shader = ExtResource("2_r3vtn")
+shader_parameter/scroll_speed = Vector2(0.001, 0.001)
+shader_parameter/intensity = 1.0
 
 [node name="MapView" type="Node2D" unique_id=1480228266]
 script = ExtResource("1_d7fhi")
@@ -19,12 +38,53 @@ script = ExtResource("1_d7fhi")
 offset_right = 40.0
 offset_bottom = 23.0
 
-[node name="ColorRect" type="ColorRect" parent="." unique_id=1180412716]
-anchors_preset = 15
+[node name="NebulaBackground" type="Control" parent="." unique_id=126728293]
+layout_mode = 3
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-color = Color(0.023371784, 0.023371786, 0.023371782, 1)
+script = ExtResource("2_8fogj")
+
+[node name="NebulaBack" type="TextureRect" parent="NebulaBackground" unique_id=493970897]
+modulate = Color(0.62782896, 0.62782896, 0.62782896, 0.35000002)
+z_index = -50
+material = SubResource("ShaderMaterial_8fogj")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_r3vtn")
+script = ExtResource("3_rbgxb")
+
+[node name="NebulaMid" type="TextureRect" parent="NebulaBackground" unique_id=1727202826]
+modulate = Color(0.76737565, 0.7977378, 0.85430586, 0.45000002)
+z_index = -45
+material = SubResource("ShaderMaterial_bps53")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_r3vtn")
+script = ExtResource("3_rbgxb")
+
+[node name="NebulaFront" type="TextureRect" parent="NebulaBackground" unique_id=1551230362]
+modulate = Color(0.9309246, 0.95468724, 1, 0.18)
+z_index = -40
+material = SubResource("ShaderMaterial_adhmk")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_r3vtn")
+script = ExtResource("3_rbgxb")
+
+[node name="ViewController" type="Node" parent="." unique_id=79440021]

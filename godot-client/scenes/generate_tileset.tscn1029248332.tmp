@@ -1,6 +1,0 @@
-[gd_scene format=3 uid="uid://dxedy6bhlpm6u"]
-
-[ext_resource type="Script" uid="uid://ornu0sb5wpdc" path="res://scenes/generate_tileset.gd" id="1_gen"]
-
-[node name="GenerateTileSet" type="Node" unique_id=970881573]
-script = ExtResource("1_gen")

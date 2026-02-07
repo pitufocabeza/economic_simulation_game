@@ -32,3 +32,4 @@ BUG_FIXES_SUMMARY.md
 /godot-client/addons
 /godot-client/demo
 /godot-client/shaders
+*.tmp
