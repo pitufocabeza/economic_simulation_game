@@ -6,8 +6,10 @@
 [ext_resource type="PackedScene" uid="uid://bynddbjgak4by" path="res://game/buildings/defs/building_control.tscn" id="4_fc0e3"]
 [ext_resource type="Resource" uid="uid://qmc4cbyvdf8l" path="res://game/buildings/defs/habitat.tres" id="5_qncmr"]
 [ext_resource type="Script" uid="uid://bn8d2im3m4rxh" path="res://src/building_system/BuildingDefinition.gd" id="5_ryrav"]
+[ext_resource type="Script" uid="uid://b22nb7xbti5jc" path="res://scripts/plot_view.gd" id="6_pvscr"]
 
 [node name="Node3D" type="Node3D" unique_id=175141866]
+script = ExtResource("6_pvscr")
 
 [node name="Terrain" parent="." unique_id=1876209208 instance=ExtResource("2_e2o6t")]
 BUILDABLE_SLOPE_MAX = 15.0

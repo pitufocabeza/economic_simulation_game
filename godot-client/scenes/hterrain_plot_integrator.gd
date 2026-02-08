@@ -39,6 +39,17 @@ var current_seed: int = 42
 var current_archetype: String = ""
 var current_water_level: float = 0.0
 
+## When true, _setup_references will NOT randomize current_seed.
+## Set by ViewTransition.enter_plot() before adding the scene to the tree.
+var seed_locked: bool = false
+
+## Emitted after generate_terrain() finishes applying heightmap + splatmap.
+signal terrain_ready
+
+## Emitted during generation with (percent: float, stage: String).
+## percent is 0.0 – 1.0, stage is a human-readable label.
+signal generation_progress(percent: float, stage: String)
+
 # ============================================================================
 # BUILDABILITY LAYER - gameplay grid support
 # ============================================================================
@@ -178,8 +189,9 @@ func _setup_references() -> void:
 	_setup_water_layers()
 	
 	_set_plot_size(PLOT_SIZES[current_size_index])
-	current_seed = randi()
-	generate_terrain()
+	if not seed_locked:
+		current_seed = randi()
+	await generate_terrain()
 
 func _setup_water_layers() -> void:
 	"""Create calm, strategy-game-style water plane with subtle animation.
@@ -323,7 +335,7 @@ func _input(event: InputEvent) -> void:
 		match event.keycode:
 			KEY_R:
 				print("🔄 R pressed - regenerating...")
-				generate_terrain()
+				await generate_terrain()
 				get_tree().root.set_input_as_handled()
 			
 			KEY_T:
@@ -332,13 +344,13 @@ func _input(event: InputEvent) -> void:
 				var size: int = PLOT_SIZES[current_size_index]
 				_set_plot_size(size)
 				current_seed = randi()
-				generate_terrain()
+				await generate_terrain()
 				get_tree().root.set_input_as_handled()
 			
 			KEY_C:
 				print("🏝️  C pressed - cycling archetype...")
 				current_seed = randi()
-				generate_terrain()
+				await generate_terrain()
 				get_tree().root.set_input_as_handled()
 			
 			KEY_B:
@@ -347,7 +359,7 @@ func _input(event: InputEvent) -> void:
 				get_tree().root.set_input_as_handled()
 
 func generate_terrain() -> void:
-	"""Generate heightmap from plot_generator and apply to HTerrain."""
+	"""Generate heightmap from plot_generator and apply to HTerrain (async)."""
 	if not plot_generator:
 		push_error("PlotGenerator is null")
 		return
@@ -355,6 +367,9 @@ func generate_terrain() -> void:
 	if not plot_generator.has_method("generate_plot"):
 		push_error("PlotGenerator doesn't have generate_plot method")
 		return
+
+	generation_progress.emit(0.0, "Generating heightmap…")
+	await get_tree().process_frame
 
 	print("Calling generate_plot()...")
 	var result = plot_generator.generate_plot(current_seed)
@@ -370,27 +385,34 @@ func generate_terrain() -> void:
 
 	var island_mask = result.get("island_mask", [])
 	current_archetype = result.get("archetype", "Unknown")
-	
+
 	print("✓ Generated archetype: %s (size: %dx%d)" % [current_archetype, height_map.size(), height_map[0].size() if height_map.size() > 0 else 0])
-	
-	_apply_to_hterrain(height_map, island_mask)
+
+	generation_progress.emit(0.2, "Upscaling terrain…")
+	await get_tree().process_frame
+
+	await _apply_to_hterrain(height_map, island_mask)
+	terrain_ready.emit()
 
 func _apply_to_hterrain(height_map: Array, island_mask: Array) -> void:
-	"""Apply heightmap and splatmap to HTerrain."""
+	"""Apply heightmap and splatmap to HTerrain (async with progress)."""
 	if not hterrain_data:
 		push_error("HTerrainData not available")
 		return
-	
+
 	# Upscale to HTerrain resolution
 	var scaled_map: Array = _upscale_heightmap(height_map, TERRAIN_SIZE)
 	var scaled_mask: Array = _upscale_heightmap(
-		island_mask if island_mask.size() > 0 else _create_full_land_mask(height_map), 
+		island_mask if island_mask.size() > 0 else _create_full_land_mask(height_map),
 		TERRAIN_SIZE
 	)
-	
+
+	generation_progress.emit(0.35, "Smoothing terrain…")
+	await get_tree().process_frame
+
 	# Apply light smoothing
 	scaled_map = _smooth_heightmap(scaled_map, 2)
-	
+
 	# Calculate water level
 	current_water_level = WATER_LEVEL_NORM * VERTICAL_SCALE
 	
@@ -405,7 +427,10 @@ func _apply_to_hterrain(height_map: Array, island_mask: Array) -> void:
 	print("Writing %dx%d heights to HTerrain..." % [TERRAIN_SIZE, TERRAIN_SIZE])
 	print("Archetype: %s | Water level: %.2f" % [current_archetype, current_water_level])
 	print("Height range: %.3f - %.3f (norm) → %.2f - %.2f (world)" % [min_height, max_height, min_height * VERTICAL_SCALE, max_height * VERTICAL_SCALE])
-	
+
+	generation_progress.emit(0.45, "Writing heightmap…")
+	await get_tree().process_frame
+
 	# Apply heights to HTerrain using Image-based API
 	var height_image: Image = hterrain_data.get_image(HTerrainData.CHANNEL_HEIGHT)
 	if not height_image:
@@ -437,17 +462,27 @@ func _apply_to_hterrain(height_map: Array, island_mask: Array) -> void:
 		hterrain.update_collider()
 	
 	print("✓ Heights applied to HTerrain")
-	
+
+	generation_progress.emit(0.60, "Painting biomes…")
+	await get_tree().process_frame
+
 	# Generate and apply splatmap (no need to check - resize ensures it exists)
 	var splatmap = _generate_splatmap(scaled_map, scaled_mask)
 	_apply_splatmap(splatmap)
-	
+
+	generation_progress.emit(0.80, "Placing water…")
+	await get_tree().process_frame
+
 	# Update water
 	_update_water_layer_positions()
-	
+
+	generation_progress.emit(0.90, "Computing buildability…")
+	await get_tree().process_frame
+
 	# Compute buildability layer
 	_compute_buildability_layer(scaled_map)
-	
+
+	generation_progress.emit(1.0, "Done")
 	print("✓ Terrain generation complete")
 
 func _generate_splatmap(height_map: Array, island_mask: Array) -> Image:

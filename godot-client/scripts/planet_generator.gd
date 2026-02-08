@@ -38,6 +38,19 @@ func create_planet(planet_data: Dictionary) -> MeshInstance3D:
 	planet_mesh.mesh = sphere
 	planet_mesh.name = planet_data.get("name", "Planet")
 	
+	# --- Physics collider (required for raycasting) ---
+	var body := StaticBody3D.new()
+	body.name = "PlanetBody"
+
+	var shape := CollisionShape3D.new()
+	var sphere_shape := SphereShape3D.new()
+	sphere_shape.radius = radius
+
+	shape.shape = sphere_shape
+
+	body.add_child(shape)
+	planet_mesh.add_child(body)
+	
 	# Apply procedural material
 	var material = create_planet_material(planet_data)
 	planet_mesh.material_override = material
@@ -162,6 +175,15 @@ func get_biome_id(biome_name: String) -> int:
 		_:
 			return 0
 
+func biome_id_to_name(biome_id: int) -> String:
+	match biome_id:
+		0: return "Temperate"
+		1: return "Ice"
+		2: return "Volcanic"
+		3: return "Barren"
+		4: return "Oceanic"
+		_: return "Temperate"
+
 # Get LOD segments based on planet size
 func get_lod_segments(diameter: float) -> int:
 	if diameter > 20000:
@@ -254,11 +276,17 @@ func get_planet_data(planet_id: int) -> Dictionary:
 		return {}
 
 # Create a sample planet with test data (no API required)
-func create_sample_planet(biome: String = "Temperate", diameter: float = 10000.0, seed_value: int = 12345) -> MeshInstance3D:
+func create_sample_planet(
+	biome_id: int, 
+	diameter: float, 
+	seed_value: int,
+	) -> MeshInstance3D:
+	var biome_name: String = biome_id_to_name(biome_id)
+	
 	var test_data = {
 		"name": "Sample Planet",
 		"seed": seed_value,
-		"biome": biome,
+		"biome": biome_name,
 		"diameter": diameter,
 		"atmosphere": "Breathable",
 		"gravity": 1.0

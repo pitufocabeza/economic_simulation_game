@@ -1,10 +1,10 @@
 shader_type spatial;
-render_mode specular_schlick_ggx, cull_back;
+render_mode specular_schlick_ggx, cull_back, depth_draw_opaque;
 
 uniform int planet_seed = 12345;
 uniform int biome_type = 0;  // 0=Temperate, 1=Ice, 2=Volcanic, 3=Barren, 4=Oceanic
 uniform float noise_scale = 10.0;
-uniform float height_scale = 90.0;  // Height of terrain features in world units
+uniform float height_scale = 35.0;  // Height of terrain features in world units
 
 // Texture samplers for terrain painting
 uniform sampler2D tex_plains : filter_linear_mipmap, repeat_enable;
@@ -54,7 +54,7 @@ float fbm_seed(vec3 p, int seed) {
 	float frequency = 1.0;
 	
 	// 10 octaves for ultra-realistic detail
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 6; i++) {
 		value += amplitude * (noise3d_seed(p * frequency, seed + i) * 2.0 - 1.0);
 		amplitude *= 0.5;
 		frequency *= 2.0;
@@ -308,6 +308,7 @@ void fragment() {
 
 	vec3 grad = vec3(hx - h, hy - h, hz - h);
 	NORMAL = normalize(p - grad * height_scale * 0.15);
+	NORMAL = normalize(mix(NORMAL, p, 0.35));
 	
 	// Apply normal in tangent space - reduced strength to prevent line artifacts
 	// NORMAL = normalize(NORMAL + normal_detail * 0.08);

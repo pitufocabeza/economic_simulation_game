@@ -1,40 +1,11 @@
 [gd_scene format=3 uid="uid://dxolb8ekj4wqt"]
 
 [ext_resource type="Script" uid="uid://q7mt7ecsumq1" path="res://scripts/system_view.gd" id="1_detro"]
-[ext_resource type="Texture2D" uid="uid://dmxx1ys1caksr" path="res://assets/textures/HDR_multi_nebulae_1.hdr" id="1_ugi38"]
 [ext_resource type="Script" uid="uid://ddasoap5aoqdu" path="res://orbital_camera.gd" id="3_ugi38"]
-
-[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_2fv83"]
-panorama = ExtResource("1_ugi38")
-
-[sub_resource type="Sky" id="Sky_5xuko"]
-sky_material = SubResource("PanoramaSkyMaterial_2fv83")
-
-[sub_resource type="Environment" id="Environment_26yhf"]
-background_mode = 2
-sky = SubResource("Sky_5xuko")
-ambient_light_source = 2
-ambient_light_color = Color(0.7093375, 0.75140357, 0.81833667, 1)
-ambient_light_energy = 0.3
-tonemap_mode = 3
-tonemap_white = 3.0
-glow_enabled = true
-glow_normalized = true
-glow_intensity = 4.47
-glow_strength = 1.61
-glow_mix = 0.1
-glow_blend_mode = 0
-glow_hdr_threshold = 1.35
-glow_hdr_scale = 1.2
-glow_hdr_luminance_cap = 14.8
-glow_map_strength = 0.26
 
 [node name="SystemView" type="Node3D" unique_id=2046693635]
 script = ExtResource("1_detro")
 seed = 2873762
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=240026437]
-environment = SubResource("Environment_26yhf")
 
 [node name="orbital camera" type="Camera3D" parent="." unique_id=1039033294]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 493.791, 10000)

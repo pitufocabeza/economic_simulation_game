@@ -1,0 +1,24 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/plot_tooltip.gd" id="1"]
+
+[node name="PlotTooltip" type="PanelContainer"]
+script = ExtResource("1")
+custom_minimum_size = Vector2(200, 0)
+mouse_filter = 2
+visible = false
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="LblArchetype" type="Label" parent="VBox"]
+layout_mode = 2
+text = "Archetype: —"
+
+[node name="LblSize" type="Label" parent="VBox"]
+layout_mode = 2
+text = "Plot Size: —"
+
+[node name="LblResources" type="Label" parent="VBox"]
+layout_mode = 2
+text = "Resources: —"

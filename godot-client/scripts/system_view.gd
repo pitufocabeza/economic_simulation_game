@@ -1,6 +1,6 @@
 extends Node3D
 
-@onready var camera := $"orbital camera"
+@onready var camera: Camera3D = $"orbital camera"
 @onready var planet_generator := PlanetGenerator.new()
 const PlanetMotion := preload("res://scripts/PlanetMotion.gd")
 @export var planet_count: int = 0
@@ -38,6 +38,9 @@ const EXIT_FACTOR := 1.35
 var corona: MeshInstance3D
 var sun_light: OmniLight3D
 var pan_limit_radius: float
+
+var hovered_planet: MeshInstance3D = null
+@onready var hover_material: Material = preload("res://assets/materials/planet_hover.tres")
 
 func _ready():
 	add_child(planet_generator)
@@ -102,10 +105,86 @@ func _update_star_emission():
 # ----------------------------------------------------
 var star_data: StarData
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		_update_hover(event.position)
+
+	elif event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			_try_select_planet(event.position)
+
+func _update_hover(mouse_pos: Vector2) -> void:
+	var cam: Camera3D = camera
+	var space: PhysicsDirectSpaceState3D = get_world_3d().direct_space_state
+
+	var ray_origin: Vector3 = cam.project_ray_origin(mouse_pos)
+	var ray_end: Vector3 = ray_origin + cam.project_ray_normal(mouse_pos) * 100000.0
+
+	var query := PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
+	query.collide_with_bodies = true
+	query.collide_with_areas = false
+
+	var result := space.intersect_ray(query)
+
+	var new_hover: MeshInstance3D = null
+
+	if not result.is_empty():
+		var node: Node = result["collider"]
+		while node:
+			if node is MeshInstance3D and node.has_meta("planet_data"):
+				new_hover = node
+				break
+			node = node.get_parent()
+
+	_set_hovered_planet(new_hover)
+	
+func _set_hovered_planet(planet: MeshInstance3D) -> void:
+	if hovered_planet == planet:
+		return
+
+	# Remove old highlight
+	if hovered_planet:
+		hovered_planet.material_overlay = null
+
+	hovered_planet = planet
+
+	# Apply new highlight
+	if hovered_planet:
+		hovered_planet.material_overlay = hover_material
+
+
+
 func _on_view_changed(new_view):
 	if new_view == ViewTransition.ViewMode.MAP:
 		queue_free() # or hide, depending on your setup
 		camera.pan_limit_enabled = false
+
+func _try_select_planet(mouse_pos: Vector2) -> void:
+	var cam: Camera3D = camera
+	var space: PhysicsDirectSpaceState3D = get_world_3d().direct_space_state
+
+	var ray_origin: Vector3 = cam.project_ray_origin(mouse_pos)
+	var ray_dir: Vector3 = cam.project_ray_normal(mouse_pos)
+	var ray_end: Vector3 = ray_origin + ray_dir * 100000.0
+
+	var query := PhysicsRayQueryParameters3D.create(
+		ray_origin,
+		ray_end
+	)
+	query.collide_with_areas = true
+	query.collide_with_bodies = true
+
+	var result: Dictionary = space.intersect_ray(query)
+	if result.is_empty():
+		return
+
+	var node: Node = result["collider"]
+	while node:
+		if node.has_meta("planet_data"):
+			var pdata: PlanetData = node.get_meta("planet_data")
+			ViewTransition.enter_planet(pdata)
+			return
+		node = node.get_parent()
 
 func setup_from_star(data: StarData) -> void:
 	for c in generated_root.get_children():
@@ -150,7 +229,6 @@ func generate_system(data: StarData) -> void:
 
 	# --- Compute star radius
 	star_radius = clamp(largest_planet_radius * 12.0, 800.0, 2000.0)
-
 	create_star()
 	create_planets(planet_defs, rng)
 
@@ -185,26 +263,41 @@ func compute_safe_orbit(desired_au: float, planet_radius: float) -> float:
 # ----------------------------------------------------
 
 func create_planets(planets: Array, rng):
+	var planet_index := 0
+	
 	for p in planets:
 		# Orbit pivot
 		var orbit_node := Node3D.new()
 		orbit_node.name = "Orbit_%s" % p["biome"]
 		add_child(orbit_node)
 
+		var biome_id: int = planet_generator.get_biome_id(p["biome"])
 		# Create planet body
 		var planet := planet_generator.create_sample_planet(
-			p["biome"],
+			biome_id,
 			p["radius"] * 2.0, # diameter if generator expects it
 			p["seed"]
 		)
 		if planet == null:
 			continue
+			
+		var planet_data := PlanetData.new()
+		planet_data.planet_id = planet_index   # or i
+		planet_data.system_id = star_data.system_id
+		planet_data.seed = p["seed"]
+		planet_data.biome = biome_id
+		planet_data.radius = p["radius"]
+		planet_data.plot_count = rng.randi_range(2, 10)
+
+		planet.set_meta("planet_data", planet_data)
+		print("Planet created with data:", planet.get_meta("planet_data"))
+		planet_index += 1
 		
 		var desired_au := pick_orbit_au_for_biome(p["biome"], rng)
 		var orbit := compute_safe_orbit(desired_au, p["radius"])
 
 		# biome minimum AU (keeps ice worlds away from the star)
-		if p["biome"] == "Ice":
+		if biome_id == 1:
 			orbit = max(orbit, ICE_MIN_AU * AU)
 
 		# enforce spacing
@@ -236,11 +329,10 @@ func create_planets(planets: Array, rng):
 		
 		var orbit_line := preload("res://scripts/orbit_line.gd").new()
 		orbit_line.radius = p["orbit_units"]
-		orbit_line.name = "OrbitLine_%s" % p["biome"]
+		orbit_line.name = "OrbitLine_%s" % biome_id
 		star.add_child(orbit_line)
 		
 		system_radius = max(system_radius, orbit_radius, p["radius"])
-
 
 # ----------------------------------------------------
 # STAR CREATION
@@ -276,7 +368,7 @@ func create_star():
 	
 	# Light
 	sun_light = OmniLight3D.new()
-	sun_light.light_energy = 8.0
+	sun_light.light_energy = 24.0
 	sun_light.omni_range = current_orbit + 5000000
 	star.add_child(sun_light)
 

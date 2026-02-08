@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://xy366lf7h7bs"]
+
+[ext_resource type="Script" uid="uid://dorfsuamvstes" path="res://scenes/plot_node.gd" id="1_8gk7h"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_i86b0"]
+
+[node name="PlotNode" type="Node3D" unique_id=1522759482]
+script = ExtResource("1_8gk7h")
+
+[node name="Area3D" type="Area3D" parent="." unique_id=688899092]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D" unique_id=72784958]
+shape = SubResource("SphereShape3D_i86b0")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=494547289]

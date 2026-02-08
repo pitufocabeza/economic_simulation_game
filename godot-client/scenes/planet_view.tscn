@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://2gtak03gw5ax"]
+
+[ext_resource type="Script" uid="uid://cjettjyukxmec" path="res://scenes/planet_view.gd" id="1_4w4pe"]
+
+[node name="PlanetView" type="Node3D" unique_id=1818451403]
+script = ExtResource("1_4w4pe")
+
+[node name="CameraRig" type="Node3D" parent="." unique_id=2065124929]
+
+[node name="PlanetCamera" type="Camera3D" parent="CameraRig" unique_id=376021153]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 8)
+current = true
+
+[node name="PlanetRoot" type="Node3D" parent="." unique_id=1423832985]
+
+[node name="PlanetMesh" type="MeshInstance3D" parent="PlanetRoot" unique_id=546812337]
+
+[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=1440747968]
+transform = Transform3D(0.8660254, -0.35355338, 0.35355338, 0, 0.70710677, 0.70710677, -0.5, -0.6123724, 0.6123724, 0, 0, 0)
+light_color = Color(0.99215686, 0.9843137, 0.827451, 1)
+
+[node name="RimLight" type="DirectionalLight3D" parent="." unique_id=1917551517]
+transform = Transform3D(-0.50000006, -0.4330127, -0.75, 0, 0.8660254, -0.5, 0.8660254, -0.25000003, -0.43301275, 0, 0, 0)
+light_color = Color(0.99215686, 0.9843137, 0.827451, 1)
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=1640815969]
+
+[node name="PlanetHUD" type="Control" parent="UI" unique_id=408940998]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

@@ -1,0 +1,19 @@
+[gd_resource type="Environment" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" uid="uid://dmxx1ys1caksr" path="res://assets/textures/HDR_multi_nebulae_1.hdr" id="1_nebula"]
+
+[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_map"]
+panorama = ExtResource("1_nebula")
+
+[sub_resource type="Sky" id="Sky_map"]
+sky_material = SubResource("PanoramaSkyMaterial_map")
+
+[resource]
+background_mode = 2
+sky = SubResource("Sky_map")
+ambient_light_source = 2
+ambient_light_color = Color(0.12, 0.14, 0.22, 1)
+ambient_light_energy = 0.3
+glow_enabled = true
+glow_intensity = 0.4
+glow_bloom = 0.15

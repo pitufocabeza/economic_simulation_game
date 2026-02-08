@@ -1,0 +1,78 @@
+[gd_scene format=3 uid="uid://c3starmap3dnode"]
+
+[ext_resource type="Script" path="res://scenes/star_map_node.gd" id="1_script"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_star"]
+radius = 4.0
+height = 8.0
+radial_segments = 12
+rings = 6
+
+[sub_resource type="StandardMaterial3D" id="StarMat"]
+shading_mode = 0
+albedo_color = Color(0.7, 0.85, 1, 1)
+emission_enabled = true
+emission = Color(0.4, 0.7, 1, 1)
+emission_energy_multiplier = 1.5
+
+[sub_resource type="SphereMesh" id="SphereMesh_glow"]
+radius = 10.0
+height = 20.0
+radial_segments = 12
+rings = 6
+
+[sub_resource type="StandardMaterial3D" id="GlowMat"]
+shading_mode = 0
+transparency = 1
+albedo_color = Color(0.4, 0.7, 1, 0.2)
+emission_enabled = true
+emission = Color(0.4, 0.7, 1, 1)
+emission_energy_multiplier = 0.6
+
+[sub_resource type="TorusMesh" id="TorusMesh_ring"]
+inner_radius = 7.0
+outer_radius = 8.5
+rings = 32
+ring_segments = 8
+
+[sub_resource type="StandardMaterial3D" id="RingMat"]
+shading_mode = 0
+transparency = 1
+albedo_color = Color(1, 1, 1, 0.5)
+emission_enabled = true
+emission = Color(0.8, 0.9, 1, 1)
+emission_energy_multiplier = 1.0
+
+[sub_resource type="SphereShape3D" id="SphereShape_click"]
+radius = 15.0
+
+[node name="StarMapNode" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="StarMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_star")
+material_override = SubResource("StarMat")
+
+[node name="GlowMesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_glow")
+material_override = SubResource("GlowMat")
+
+[node name="SelectionRing" type="MeshInstance3D" parent="."]
+visible = false
+mesh = SubResource("TorusMesh_ring")
+material_override = SubResource("RingMat")
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 12)
+pixel_size = 0.15
+font_size = 48
+outline_size = 0
+modulate = Color(0.85, 0.85, 0.85, 0.8)
+text = "System Name"
+billboard = 1
+
+[node name="ClickArea" type="Area3D" parent="."]
+input_ray_pickable = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ClickArea"]
+shape = SubResource("SphereShape_click")

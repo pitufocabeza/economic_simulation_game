@@ -85,6 +85,10 @@ func _clamp_target() -> void:
 # -----------------------------
 # Keyboard controls
 # -----------------------------
+func set_input_enabled(value: bool) -> void:
+	set_process_input(value)
+	set_process_unhandled_input(value)
+
 
 func _handle_keyboard_rotation(delta: float) -> void:
 	if Input.is_key_pressed(KEY_Q):
